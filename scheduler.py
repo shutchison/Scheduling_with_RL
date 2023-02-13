@@ -77,8 +77,8 @@ class Schdueler():
     def __init__(self):
         self.machines = []
         self.global_clock = 0
-        self.PPG = None #TODO: load this saved model upon object creation
-        self.DDPG = None #TODO:  load this saved model upon object creation
+        self.PPG_model = None #TODO: load this saved model upon object creation
+        self.DDPG_model = None #TODO:  load this saved model upon object creation
 
         #initialize self.future_jobs with all jobs we need to run
         self.future_jobs = queue.PriorityQueue() # ordered based on submit time
