@@ -1,4 +1,5 @@
 import queue
+from pprint import pprint
 
 class Job():
     def __init__(self, job_name:str, # For identification purposes
@@ -31,6 +32,12 @@ class Job():
             s += str(key) + "=" + repr(value) + ", "
         return s[:-2] + ")"
 
+    def __eq__(self, other):
+        if type(other) != type(self):
+            return False
+        return self.job_name == other.job_name
+
+
 class Machine():
     def __init__(self, node_name:str, # for identification purposes
                        total_mem:int, # in mb of memory this node has
@@ -45,7 +52,7 @@ class Machine():
         self.avail_gpus = total_gpus
         self.running_jobs = []
 
-    def schedule(self, job):
+    def start_job(self, job):
         self.running_jobs.append(job)
         self.avail_mem -= job.req_mem
         self.avail_cpus -= job.req_cpus
@@ -55,10 +62,26 @@ class Machine():
         assert(self.avail_mem >= 0)
         assert(self.avail_gpus >= 0)
 
-    def stop_job(self):
+    def stop_job(self, job_name:str):
         # remove a job and free up the resources it was using
-        pass
+        job_to_remove = None
+        for index, job in enumerate(self.running_jobs):
+            if job.job_name == job_name:
+                job_to_remove = self.running_jobs[index]
+                self.running_jobs = self.running_jobs[:index] + self.running_jobs[index+1:]
+                break
         
+        if job_to_remove == None:
+            print("{} not found running on this machine".format(job_name))
+        else:
+            self.avail_mem +=  job_to_remove.req_mem
+            self.avail_cpus += job_to_remove.req_cpus
+            self.avail_gpus += job_to_remove.req_gpus
+
+            assert(self.avail_mem <= self.total_mem)
+            assert(self.avail_cpus <= self.total_cpus)
+            assert(self.avail_gpus <= self.total_gpus)
+            
         
     def __repr__(self):
         s = "Machine("
@@ -72,19 +95,44 @@ class Machine():
             s += str(key) + "=" + repr(value) + ", "
         return s[:-2] + ")"   
     
-
 class Schdueler():
     def __init__(self):
         self.machines = []
         self.global_clock = 0
         self.PPG_model = None #TODO: load this saved model upon object creation
         self.DDPG_model = None #TODO:  load this saved model upon object creation
-
+        self.SJF_model = None # Shortest job first will minimize avg job queue time, but can cause starvation.
+        
         #initialize self.future_jobs with all jobs we need to run
         self.future_jobs = queue.PriorityQueue() # ordered based on submit time
         self.queue = queue.PriorityQueue() # ordered based on submit time
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
+    
+    def load_machines(self, csv_file_name):
+        f = open(csv_file_name)
+        lines = f.readlines()
+        f.close()
+        lines = list(map(str.strip, lines))
+        # print(lines)
+        headers = lines[0]
+        for line in lines[1:]:
+            elements = line.split(",")
+            self.machines.append(Machine(elements[0], *map(int, elements[1:])))
+    
+    def load_jobs(self, csv_file_name):
+        f = open(csv_file_name)
+        lines = f.readlines()
+        f.close()
+        lines = list(map(str.strip, lines))
+        # print(lines)
+        headers = lines[0]
+        for line in lines[1:]:
+            elements = line.split(",")
+            j = Job(elements[0], *map(int, elements[1:]))
+
+            # wrap this in a tuple, so they are ordered by their sumbission time.
+            self.future_jobs.put( (j.submission_time, j) )
 
     def tick(self):
         self.global_clock += 1
@@ -122,3 +170,28 @@ class Schdueler():
     def calculate_metrics(self) -> float:
         # iterate through self.completed_jobs and compute the avg queue time for all jobs which have been compelted
         return 3.1415
+
+# j = Job(job_name="job1",
+#         req_mem=4000,
+#         req_cpus=1,
+#         req_gpus=2, 
+#         req_duration=10, 
+#         actual_duration=8, 
+#         submission_time=1)
+
+# print(j)
+
+# m = Machine(node_name="compute_node_1",
+#             total_mem=64000000,
+#             total_cpus=64,
+#             total_gpus=4)
+# print(m)
+# m.start_job(j)
+# print(m)
+# m.stop_job("job1")
+# print(m)
+
+s = Schdueler()
+# s.load_machines("machines.csv")
+s.load_jobs("jobs.csv")
+pprint(s.future_jobs.queue)
