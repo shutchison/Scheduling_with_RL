@@ -1,6 +1,12 @@
 import queue
 from pprint import pprint
+from functools import total_ordering
 
+# total ordering allows for auto generation of all comparison operators
+# for comparing one job to another job.
+# Equality will check if the job_name strings are the same
+# less than, greater than, etc. will use ReqDuration
+@total_ordering
 class Job():
     def __init__(self, job_name:str, # For identification purposes
                        req_mem:int, # In megabytes of memory requested
@@ -37,6 +43,8 @@ class Job():
             return False
         return self.job_name == other.job_name
 
+    def __lt__(self, other):
+        return self.req_duration < other.req_duration
 
 class Machine():
     def __init__(self, node_name:str, # for identification purposes
@@ -130,7 +138,6 @@ class Schdueler():
         for line in lines[1:]:
             elements = line.split(",")
             j = Job(elements[0], *map(int, elements[1:]))
-
             # wrap this in a tuple, so they are ordered by their sumbission time.
             self.future_jobs.put( (j.submission_time, j) )
 
