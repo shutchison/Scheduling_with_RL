@@ -103,17 +103,28 @@ class Machine():
             s += str(key) + "=" + repr(value) + ", "
         return s[:-2] + ")"   
     
-class Schdueler():
-    def __init__(self):
+class Scheduler():
+    def __init__(self, model_type=None): # change this to make model type be required?
         self.machines = []
         self.global_clock = 0
+
+        # might want to do it like this.  TBD...
+        if model_type == "PPG":
+            pass
+            #do thing
+
         self.PPG_model = None #TODO: load this saved model upon object creation
         self.DDPG_model = None #TODO:  load this saved model upon object creation
         self.SJF_model = None # Shortest job first will minimize avg job queue time, but can cause starvation.
         
+
+        # global_clock = 3
+        # look in future jobs for all jobs that have submit time == 3
+        # once I find one whose submit time is greater than 3, I can stop looking for more.
+
         #initialize self.future_jobs with all jobs we need to run
-        self.future_jobs = queue.PriorityQueue() # ordered based on submit time
-        self.queue = queue.PriorityQueue() # ordered based on submit time
+        self.future_jobs = queue.PriorityQueue()  # ordered based on submit time
+        self.job_queue = queue.PriorityQueue()    # ordered based on submit time
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
     
@@ -144,13 +155,18 @@ class Schdueler():
     def tick(self):
         self.global_clock += 1
         # iterate through self.future_jobs to find all jobs with job.submit_time == self.global_clock
-        # move these jobs to self.queue ordered based on job.submit_time
-        # iterate through self.running jobs and remove all jobs from machins whose job.end_time == self.global_clock
+        # move these jobs to self.job_queue ordered based on job.submit_time
+        # iterate through self.running jobs and remove all jobs from machines whose job.end_time == self.global_clock
         # append these jobs to self.completed_jobs
-        # iterate through self.queue and attempt to schedule all jobs using appropriate algorithm
+        # iterate through self.job_queue and attempt to schedule all jobs using appropriate algorithm
         # move successfully scheduled jobs to the self.running_jobs
         
+    def shortest_job_first(self, job):
+        pass
+    #starvation
+
     def best_bin_first(self, job):
+        # will return the job to node allocation.
         pass
         # look at self.machines, decide which machine can run this job using best bin first algorithm,
         # recall we have three contraints to satisfy: machine must have adequate memory, cpus, and gpus for this job
@@ -198,7 +214,7 @@ class Schdueler():
 # m.stop_job("job1")
 # print(m)
 
-s = Schdueler()
-# s.load_machines("machines.csv")
+s = Scheduler()
+s.load_machines("machines.csv")
 s.load_jobs("jobs.csv")
 pprint(s.future_jobs.queue)
