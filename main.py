@@ -16,13 +16,10 @@ m = Machine(node_name="compute_node_1",
             total_cpus=64,
             total_gpus=4)
 
-
-#print(m)
-
 s = Scheduler(model_type="BBF")
 s.load_machines("machines.csv")
 s.load_jobs("jobs.csv")
-#pprint(s.future_jobs.queue)
+
 s.tick()
 for m in s.machines:
     print(m)

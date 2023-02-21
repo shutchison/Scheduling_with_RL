@@ -38,6 +38,9 @@ class Scheduler():
             j = Job(elements[0], *map(int, elements[1:]))
             # wrap this in a tuple, so they are ordered by their sumbission time.
             self.future_jobs.put( (j.submission_time, j) )
+        
+        # Initialize global clock to submission time of first job
+        self.global_clock = self.future_jobs.queue[0][0]
 
     def tick(self):
         # iterate through self.future_jobs to find all jobs with job.submision_time == self.global_clock
@@ -46,75 +49,74 @@ class Scheduler():
         # append these jobs to self.completed_jobs
         # iterate through self.job_queue and attempt to schedule all jobs using appropriate algorithm
         # move successfully scheduled jobs to the self.running_jobs
-        
-        pass
-    
-        # TODO: This isn't quite working yet.
-        
-        while not self.future_jobs.empty():
-            
-            fj = self.future_jobs.get()
 
-            if fj.submision_time == self.global_clock:
-                self.job_queue.put((fj.submission_time,fj))
+        while not self.future_jobs.empty() or not self.running_jobs.empty():
+
+            for rj in range(len(self.running_jobs.queue)):
+                if self.running_jobs.queue[rj][1].end_time == self.global_clock:
+                    self.completed_jobs.put(self.running_jobs.get())
+
+            if self.future_jobs.queue[0][0] == self.global_clock:
+                self.job_queue.put(self.future_jobs.get())
             else:
-                self.global_clock += 1
+                while not self.job_queue.empty():
+                    jq = self.job_queue.get()
+                    print("Scheduling " + jq[1].job_name)
+                    success = self.schedule(jq[1])
+                    self.running_jobs.put(jq)
+                    if not success:
+                        print("No machine available for " + jq[1].job_name)
+                        self.future_jobs.put(jq)
+
+                self.global_clock = min(self.future_jobs.queue[0][0], self.running_jobs.queue[0][1].end_time)
         
-            
-    
     def schedule(self, job):
         if self.model_type == "PPG":
-            self.PPG(job) #TODO: load this saved model upon object creation
+            return self.PPG(job) #TODO: load this saved model upon object creation
 
         elif self.model_type == "DDPG":
-            self.DDPG(job) #TODO: load this saved model upon object creation
+            return self.DDPG(job) #TODO: load this saved model upon object creation
 
         elif self.model_type == "SJF":
-            self.shortest_job_first(job) # Shortest job first will minimize avg job queue time, but can cause starvation.
+            return self.shortest_job_first(job) # Shortest job first will minimize avg job queue time, but can cause starvation.
 
         elif self.model_type == "BBF":
-            self.best_bin_first(job)
+            return self.best_bin_first(job)
         else:
             # default bin packing procedure best bin first
-            self.best_bin_first(job)
+            return self.best_bin_first(job)
 
 
     def shortest_job_first(self, job):
-        pass
+        return False
     #starvation
 
     def best_bin_first(self, job):
-        # will return the job to node allocation.
-        # look at self.machines, decide which machine can run this job using best bin first algorithm
-        # recall we have three contraints to satisfy: machine must have adequate memory, cpus, and gpus for this job
-        # call self.set_job_time to record its time span
-        # call machine.start_job to start the job running
-
         min_fill_margin = 1e100
-        assigned_machine = Machine("dummy",0,0,0)
+        assigned_machine = None
         for m in self.machines:
             if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
+                # TODO: Should constraint margins be scaled for this calc? Mem is on the scale of 1e9 and cpus/gpus are on the scale of 1.
                 fill_margin = (m.avail_mem - job.req_mem) + (m.avail_cpus - job.req_cpus) + (m.avail_gpus - job.req_gpus)
                 if fill_margin <= min_fill_margin:
                     min_fill_margin = fill_margin
                     assigned_machine = m
-        if assigned_machine.node_name != "dummy":
+        if assigned_machine is not None:
             self.set_job_time(job)
-            assigned_machine.start_job()
+            assigned_machine.start_job(job)
+            return True
         else:
-            # TODO: What happens when we can't schedule a job?
-            print("no machine available for job" + job.job_name)
-            pass
+            return False
 
     def PPG(self, job):
-        pass
+        return False
         # call self.PPG.predict (or whatever the API says to do) to decide where to schedule this job
         # recall we have three contraints to satisfy: machine must have adequate memory, cpus, and gpus for this job
         # call self.set_job_time to record its time span
         # call machine.start_job to start the job running
 
     def DDPG(self, job):
-        pass
+        return False
         # call self.DDPG.predict (or whatever the API says to do) to decide where to schedule this job
         # recall we have three contraints to satisfy: machine must have adequate memory, cpus, and gpus for this job
         # call self.set_job_time to record its time span
