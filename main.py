@@ -3,24 +3,24 @@ from machine import Machine
 from job import Job
 from pprint import pprint
 
-j = Job(job_name="job",
-        req_mem=4000,
-        req_cpus=1,
-        req_gpus=2, 
-        req_duration=10, 
-        actual_duration=8, 
-        submission_time=1)
-
-m = Machine(node_name="compute_node_1",
-            total_mem=64000000,
-            total_cpus=64,
-            total_gpus=4)
-
 s = Scheduler(model_type="BBF")
 s.load_machines("machines.csv")
 s.load_jobs("jobs.csv")
+i = 0
+while True:
+    i += 1
+    print("="*40 + "\ni={}".format(i))
+    if not s.tick():
+        break
+print("="*40)
+# pprint(s.completed_jobs)
+print("{} future jobs".format(len(s.future_jobs.queue)))
+print("{} jobs pending".format(len(s.job_queue)))
+print("{} jobs running".format(len(s.running_jobs.queue)))
+print("{} jobs completed".format(len(s.completed_jobs)))
+print("Avg queue time is {} seconds".format(s.calculate_metrics()))
 
-s.tick()
-for m in s.machines:
-    print(m)
+for j in s.job_queue:
+    print(j)
 
+print("done")

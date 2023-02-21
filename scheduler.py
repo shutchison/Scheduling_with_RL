@@ -11,7 +11,7 @@ class Scheduler():
 
         #initialize self.future_jobs with all jobs we need to run
         self.future_jobs = queue.PriorityQueue()  # ordered based on submit time
-        self.job_queue = queue.PriorityQueue()    # ordered based on submit time
+        self.job_queue = []
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
     
@@ -38,7 +38,9 @@ class Scheduler():
             j = Job(elements[0], *map(int, elements[1:]))
             # wrap this in a tuple, so they are ordered by their sumbission time.
             self.future_jobs.put( (j.submission_time, j) )
-
+        # initialize global clock to be the submission time of the first job
+        self.global_clock = self.future_jobs.queue[0][0]
+    
     def tick(self):
         # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
         # move these jobs to self.job_queue ordered based on job.submision_time
@@ -47,38 +49,69 @@ class Scheduler():
         # iterate through self.job_queue and attempt to schedule all jobs using appropriate algorithm
         # move successfully scheduled jobs to the self.running_jobs
 
-        while not self.future_jobs.empty() or not self.running_jobs.empty():
+        # move jobs who have been submitted now into the job_queue
+        while not self.future_jobs.empty():
+            first_submit = self.future_jobs.queue[0][0]
+            if first_submit > self.global_clock:
+                break
+            elif first_submit == self.global_clock:
+                job = self.future_jobs.get()[1]
+                print("{} submitted at time {}".format(job.job_name, self.global_clock))
+                self.job_queue.append(job)
 
-            #print("running jobs: {}".format(len(self.running_jobs.queue)))
-            if not self.running_jobs.empty():
-                while self.running_jobs.queue[0][0] == self.global_clock:
-                    rj = self.running_jobs.get()
-                    for m in self.machines:
-                        for j in m.running_jobs:
-                            if j.job_name == rj[1].job_name:
-                                m.stop_job(rj[1].job_name)
-                                self.completed_jobs.append(rj)
+        # stop all jobs who end at the current time and move them to completed
+        while not self.running_jobs.empty():
+            first_end = self.running_jobs.queue[0][0]
+            if first_end > self.global_clock:
+                break
+            elif first_end == self.global_clock:
+                end_time, job = self.running_jobs.get()
+                found = False
+                for m in self.machines:
+                    for j in m.running_jobs:
+                        if job.job_name == j.job_name:
+                            print("job {} ending at time {}".format(job.job_name, self.global_clock))
+                            found = True
+                            m.stop_job(job.job_name)
+                            self.completed_jobs.append(job)
+                            break
+                    if found:
+                        break
 
-            if not self.future_jobs.empty():
-                while self.future_jobs.queue[0][0] == self.global_clock:
-                    self.job_queue.put(self.future_jobs.get())
+        # Try to schedule any jobs which can now be run
+        none_can_be_scheduled = False
+        while not none_can_be_scheduled:
+            any_scheduled = False
+            for index, job in enumerate(self.job_queue):
+                scheduled = self.schedule(job)
+                if scheduled:
+                    print("job {} started at time {}".format(job.job_name, self.global_clock))
+                    any_scheduled = True
+                    self.running_jobs.put( (job.end_time, job) )
+                    self.job_queue = self.job_queue[:index] + self.job_queue[index+1:]
+                    break
+            if not any_scheduled:
+                none_can_be_scheduled = True
 
-            while not self.job_queue.empty():
-                jq = self.job_queue.get()
-                print("Scheduling " + jq[1].job_name)
-                success = self.schedule(jq[1])
-                if success:
-                    self.running_jobs.put((jq[1].end_time, jq[1]))
-                else:
-                    print("No machine available for " + jq[1].job_name)
-                    self.future_jobs.put(jq)
-                
-            if not self.future_jobs.empty() and not self.running_jobs.empty():
-                self.global_clock = min(self.future_jobs.queue[0][0], self.running_jobs.queue[0][0])
-            elif not self.future_jobs.empty() and self.running_jobs.empty():
-                self.global_clock = self.future_jobs.queue[0][0]
-            elif self.future_jobs.empty() and not self.running_jobs.empty():
-                self.global_clock = self.running_jobs.queue[0][0]
+        # update global clock to be the next submisison or ending event
+        if self.future_jobs.empty() and self.running_jobs.empty():
+            print("No future jobs and no running jobs!")
+            return False
+
+        first_submit = 1e100
+        first_end = 1e100
+        if not self.future_jobs.empty():
+            first_submit = self.future_jobs.queue[0][0]
+        if not self.running_jobs.empty():
+            first_end = self.running_jobs.queue[0][0]
+        
+        self.global_clock = min(first_submit, first_end)
+
+        if self.global_clock == 1e100:
+            print("Something wrong has happend.")
+            return False
+
+        return True
         
     def schedule(self, job):
         if self.model_type == "PPG":
@@ -99,7 +132,7 @@ class Scheduler():
 
     def shortest_job_first(self, job):
         return False
-    #starvation
+        #starvation possible
 
     def best_bin_first(self, job):
         min_fill_margin = 1e100
@@ -138,4 +171,27 @@ class Scheduler():
 
     def calculate_metrics(self) -> float:
         # iterate through self.completed_jobs and compute the avg queue time for all jobs which have been compelted
-        return 3.1415
+        queue_sum = sum([job.start_time-job.submission_time for job in self.completed_jobs])
+        if len(self.completed_jobs) != 0:
+            return queue_sum/len(self.completed_jobs)
+        else:
+            print("There are no completed jobs!")
+            return 3.1415
+
+    def __repr__(self):
+        s = "Scheduler("
+        for key, value in self.__dict__.items():
+            if type(value) == queue.PriorityQueue:
+                s += str(value.queue)
+            else:
+                s += str(key) + "=" + repr(value) + ",\n"
+        return s[:-2] + ")"
+    
+    def __str__(self):
+        s = "Scheduler("
+        for key, value in self.__dict__.items():
+            if type(value) == queue.PriorityQueue:
+                s += str(key) + "=" + repr(value.queue) + ",\n"
+            else:
+                s += str(key) + "=" + repr(value) + ",\n"
+        return s[:-2] + ")"
