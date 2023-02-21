@@ -38,12 +38,9 @@ class Scheduler():
             j = Job(elements[0], *map(int, elements[1:]))
             # wrap this in a tuple, so they are ordered by their sumbission time.
             self.future_jobs.put( (j.submission_time, j) )
-        
-        # Initialize global clock to submission time of first job
-        self.global_clock = self.future_jobs.queue[0][0]
 
     def tick(self):
-        # iterate through self.future_jobs to find all jobs with job.submision_time == self.global_clock
+        # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
         # move these jobs to self.job_queue ordered based on job.submision_time
         # iterate through self.running jobs and remove all jobs from machines whose job.end_time == self.global_clock
         # append these jobs to self.completed_jobs
@@ -52,23 +49,36 @@ class Scheduler():
 
         while not self.future_jobs.empty() or not self.running_jobs.empty():
 
-            for rj in range(len(self.running_jobs.queue)):
-                if self.running_jobs.queue[rj][1].end_time == self.global_clock:
-                    self.completed_jobs.put(self.running_jobs.get())
+            #print("running jobs: {}".format(len(self.running_jobs.queue)))
+            if not self.running_jobs.empty():
+                while self.running_jobs.queue[0][0] == self.global_clock:
+                    rj = self.running_jobs.get()
+                    for m in self.machines:
+                        for j in m.running_jobs:
+                            if j.job_name == rj[1].job_name:
+                                m.stop_job(rj[1].job_name)
+                                self.completed_jobs.append(rj)
 
-            if self.future_jobs.queue[0][0] == self.global_clock:
-                self.job_queue.put(self.future_jobs.get())
-            else:
-                while not self.job_queue.empty():
-                    jq = self.job_queue.get()
-                    print("Scheduling " + jq[1].job_name)
-                    success = self.schedule(jq[1])
-                    self.running_jobs.put(jq)
-                    if not success:
-                        print("No machine available for " + jq[1].job_name)
-                        self.future_jobs.put(jq)
+            if not self.future_jobs.empty():
+                while self.future_jobs.queue[0][0] == self.global_clock:
+                    self.job_queue.put(self.future_jobs.get())
 
-                self.global_clock = min(self.future_jobs.queue[0][0], self.running_jobs.queue[0][1].end_time)
+            while not self.job_queue.empty():
+                jq = self.job_queue.get()
+                print("Scheduling " + jq[1].job_name)
+                success = self.schedule(jq[1])
+                if success:
+                    self.running_jobs.put((jq[1].end_time, jq[1]))
+                else:
+                    print("No machine available for " + jq[1].job_name)
+                    self.future_jobs.put(jq)
+                
+            if not self.future_jobs.empty() and not self.running_jobs.empty():
+                self.global_clock = min(self.future_jobs.queue[0][0], self.running_jobs.queue[0][0])
+            elif not self.future_jobs.empty() and self.running_jobs.empty():
+                self.global_clock = self.future_jobs.queue[0][0]
+            elif self.future_jobs.empty() and not self.running_jobs.empty():
+                self.global_clock = self.running_jobs.queue[0][0]
         
     def schedule(self, job):
         if self.model_type == "PPG":
