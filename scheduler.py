@@ -78,11 +78,16 @@ class Scheduler():
                     if found:
                         break
 
+        # Depending on scheduling algorithm, sort by job duration
+        if self.model_type == "sjf":
+            self.job_queue.sort(key=lambda x: x.req_duration) # sjf = shortest job first by requested duration
+        if self.model_type == "oracle":
+            self.job_queue.sort(key=lambda x: x.actual_duration) # oracle = shortest job first with knowledge of actual duration
+        
         # Try to schedule any jobs which can now be run
         none_can_be_scheduled = False
         while not none_can_be_scheduled:
             any_scheduled = False
-            self.job_queue.sort(key=lambda x: x.actual_duration) # used for shortest job first method, shouldn't impact others since this is all one time step
             for index, job in enumerate(self.job_queue):
                 scheduled = self.schedule(job)
                 if scheduled:
@@ -115,24 +120,28 @@ class Scheduler():
         return True
         
     def schedule(self, job):
-        if self.model_type == "PPG":
+        if self.model_type == "ppg":
             return self.PPG(job) #TODO: load this saved model upon object creation
 
-        elif self.model_type == "DDPG":
+        elif self.model_type == "ddpg":
             return self.DDPG(job) #TODO: load this saved model upon object creation
 
-        elif self.model_type == "SJF":
+        elif self.model_type == "sjf":
             return self.shortest_job_first(job)
 
-        elif self.model_type == "BBF":
+        elif self.model_type == "bbf":
             return self.best_bin_first(job)
+
+        elif self.model_type == "oracle":
+            return self.shortest_job_first(job)
+
         else:
             # default bin packing procedure best bin first
             return self.best_bin_first(job)
 
 
     def shortest_job_first(self, job):
-        # jobs are sorted by ascending actual duration before being handed to this function
+        # jobs are sorted by ascending duration before being handed to this function
         assigned_machine = None
         for m in self.machines:
             if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
