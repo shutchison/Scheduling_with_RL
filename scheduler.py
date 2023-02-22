@@ -155,15 +155,35 @@ class Scheduler():
         
 
     def best_bin_first(self, job):
-        min_fill_margin = 1e100
+        min_fill_margin = 10
         assigned_machine = None
         for m in self.machines:
             if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
-                # TODO: Should constraint margins be scaled for this calc? Mem is on the scale of 1e9 and cpus/gpus are on the scale of 1.
-                fill_margin = (m.avail_mem - job.req_mem) + (m.avail_cpus - job.req_cpus) + (m.avail_gpus - job.req_gpus)
+                
+                mem_margin = 0.0
+                cpu_margin = 0.0
+                gpu_margin = 0.0
+
+                n_attr = 0
+
+                if m.total_mem > 0:
+                    mem_margin = (m.avail_mem - job.req_mem)/m.total_mem
+                    n_attr += 1
+
+                if m.total_cpus > 0:
+                    cpu_margin = (m.avail_cpus - job.req_cpus)/m.total_cpus
+                    n_attr += 1
+
+                if m.total_gpus > 0:
+                    gpu_margin = (m.avail_gpus - job.req_gpus)/m.total_gpus
+                    n_attr += 1
+
+                fill_margin = (mem_margin + cpu_margin + gpu_margin)/n_attr
+
                 if fill_margin <= min_fill_margin:
                     min_fill_margin = fill_margin
                     assigned_machine = m
+        
         if assigned_machine is not None:
             self.set_job_time(job)
             assigned_machine.start_job(job)

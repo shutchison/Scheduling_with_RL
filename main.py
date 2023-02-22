@@ -3,7 +3,7 @@ from machine import Machine
 from job import Job
 from pprint import pprint
 
-s = Scheduler(model_type="oracle")
+s = Scheduler(model_type="bbf")
 s.load_machines("machines.csv")
 s.load_jobs("jobs.csv")
 i = 0
