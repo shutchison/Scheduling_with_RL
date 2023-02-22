@@ -203,7 +203,7 @@ class Scheduler():
                 else:
                     fill_margin = (mem_margin + cpu_margin + gpu_margin)/n_attributes
 
-                if fill_margin <= min_fill_margin:
+                if fill_margin < min_fill_margin:
                     min_fill_margin = fill_margin
                     assigned_machine = m
         
