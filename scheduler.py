@@ -40,7 +40,7 @@ class Scheduler():
             self.future_jobs.put( (j.submission_time, j) )
         # initialize global clock to be the submission time of the first job
         self.global_clock = self.future_jobs.queue[0][0]
-    
+
     def tick(self):
         # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
         # move these jobs to self.job_queue ordered based on job.submision_time
@@ -82,6 +82,7 @@ class Scheduler():
         none_can_be_scheduled = False
         while not none_can_be_scheduled:
             any_scheduled = False
+            self.job_queue.sort(key=lambda x: x.actual_duration) # used for shortest job first method, shouldn't impact others since this is all one time step
             for index, job in enumerate(self.job_queue):
                 scheduled = self.schedule(job)
                 if scheduled:
@@ -108,7 +109,7 @@ class Scheduler():
         self.global_clock = min(first_submit, first_end)
 
         if self.global_clock == 1e100:
-            print("Something wrong has happend.")
+            print("Something has gone wrong updating the global clock.")
             return False
 
         return True
@@ -121,7 +122,7 @@ class Scheduler():
             return self.DDPG(job) #TODO: load this saved model upon object creation
 
         elif self.model_type == "SJF":
-            return self.shortest_job_first(job) # Shortest job first will minimize avg job queue time, but can cause starvation.
+            return self.shortest_job_first(job)
 
         elif self.model_type == "BBF":
             return self.best_bin_first(job)
@@ -131,8 +132,18 @@ class Scheduler():
 
 
     def shortest_job_first(self, job):
-        return False
-        #starvation possible
+        # jobs are sorted by ascending actual duration before being handed to this function
+        assigned_machine = None
+        for m in self.machines:
+            if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
+                assigned_machine = m
+        if assigned_machine is not None:
+            self.set_job_time(job)
+            assigned_machine.start_job(job)
+            return True
+        else:
+            return False
+        
 
     def best_bin_first(self, job):
         min_fill_margin = 1e100
