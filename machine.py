@@ -1,4 +1,5 @@
-
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 class Machine():
     def __init__(self, node_name:str, # for identification purposes
@@ -13,6 +14,17 @@ class Machine():
         self.total_gpus = total_gpus
         self.avail_gpus = total_gpus
         self.running_jobs = []
+
+        self.tick_times = []
+        self.avail_mem_at_times = []
+        self.avail_cpus_at_times = []
+        self.avail_gpus_at_times = []
+
+    def log_status(self, current_time):
+        self.tick_times.append(current_time)
+        self.avail_mem_at_times.append(self.avail_mem)
+        self.avail_cpus_at_times.append(self.avail_cpus)
+        self.avail_gpus_at_times.append(self.avail_gpus)
 
     def start_job(self, job):
         self.running_jobs.append(job)
@@ -44,7 +56,37 @@ class Machine():
             assert(self.avail_cpus <= self.total_cpus)
             assert(self.avail_gpus <= self.total_gpus)
             
+    def plot_usage(self):
+        fig = plt.figure(figsize=[12,10])
+        fig.suptitle("Utilization for {}".format(self.node_name))
+        mem_perc = [mem/self.total_mem for mem in self.avail_mem_at_times]
+        cpu_perc = [cpu/self.total_cpus for cpu in self.avail_cpus_at_times]
+        if self.total_gpus != 0:
+            gpu_perc = [mem/self.total_gpus for mem in self.avail_gpus_at_times]
+        else:
+            gpu_perc = [0 for _ in self.avail_gpus_at_times]
+        ticks = [datetime.fromtimestamp(t) for t in self.tick_times]
         
+        plt.plot(ticks,
+                 mem_perc, 
+                 color="red", 
+                 label="Memory Utilization")
+
+        plt.plot(ticks, 
+                 gpu_perc, 
+                 color="blue", 
+                 label="GPU Utilization")
+
+        plt.plot(ticks, 
+                cpu_perc, 
+                color="green", 
+                label="CPU Utilization")
+        plt.legend()
+        
+        plt.xlabel("time")
+        plt.ylabel("Percentage utilized")
+        plt.savefig("plots/{}.jpg".format(self.node_name), bbox_inches="tight")
+
     def __repr__(self):
         s = "Machine("
         for key, value in self.__dict__.items():
