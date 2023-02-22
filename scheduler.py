@@ -19,7 +19,7 @@ class Scheduler():
         for m in self.machines:
             m.log_status(self.global_clock)
     
-    def reset(self):
+    def reset(self, model_type:str):
         self.machines = []
         self.global_clock = 0
         self.model_type = model_type
