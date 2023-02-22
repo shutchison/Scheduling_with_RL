@@ -19,12 +19,16 @@ class Scheduler():
         for m in self.machines:
             m.log_status(self.global_clock)
     
+    def machines_plot(self):
+        for m in self.machines:
+            m.plot_usage(self.model_type)
+    
     def reset(self, model_type:str):
+        chart_generation
         self.machines = []
         self.global_clock = 0
         self.model_type = model_type
 
-        #initialize self.future_jobs with all jobs we need to run
         self.future_jobs = queue.PriorityQueue()  # ordered based on submit time
         self.job_queue = []
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
