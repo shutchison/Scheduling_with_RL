@@ -15,6 +15,21 @@ class Scheduler():
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
     
+    def machines_log_status(self):
+        for m in self.machines:
+            m.log_status(self.global_clock)
+    
+    def reset(self):
+        self.machines = []
+        self.global_clock = 0
+        self.model_type = model_type
+
+        #initialize self.future_jobs with all jobs we need to run
+        self.future_jobs = queue.PriorityQueue()  # ordered based on submit time
+        self.job_queue = []
+        self.running_jobs = queue.PriorityQueue() # ordered based on end time
+        self.completed_jobs = []
+    
     def load_machines(self, csv_file_name):
         f = open(csv_file_name)
         lines = f.readlines()
@@ -56,7 +71,7 @@ class Scheduler():
                 break
             elif first_submit == self.global_clock:
                 job = self.future_jobs.get()[1]
-                print("{} submitted at time {}".format(job.job_name, self.global_clock))
+                #print("{} submitted at time {}".format(job.job_name, self.global_clock))
                 self.job_queue.append(job)
 
         # stop all jobs who end at the current time and move them to completed
@@ -70,10 +85,11 @@ class Scheduler():
                 for m in self.machines:
                     for j in m.running_jobs:
                         if job.job_name == j.job_name:
-                            print("job {} ending at time {}".format(job.job_name, self.global_clock))
+                            #print("job {} ending at time {}".format(job.job_name, self.global_clock))
                             found = True
                             m.stop_job(job.job_name)
                             self.completed_jobs.append(job)
+                            self.machines_log_status()
                             break
                     if found:
                         break
@@ -91,10 +107,11 @@ class Scheduler():
             for index, job in enumerate(self.job_queue):
                 scheduled = self.schedule(job)
                 if scheduled:
-                    print("job {} started at time {}".format(job.job_name, self.global_clock))
+                    # print("job {} started at time {}".format(job.job_name, self.global_clock))
                     any_scheduled = True
                     self.running_jobs.put( (job.end_time, job) )
                     self.job_queue = self.job_queue[:index] + self.job_queue[index+1:]
+                    self.machines_log_status()
                     break
             if not any_scheduled:
                 none_can_be_scheduled = True
