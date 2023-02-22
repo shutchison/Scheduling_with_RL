@@ -56,7 +56,7 @@ class Machine():
             assert(self.avail_cpus <= self.total_cpus)
             assert(self.avail_gpus <= self.total_gpus)
             
-    def plot_usage(self):
+    def plot_usage(self, model_type):
         fig = plt.figure(figsize=[12,10])
         fig.suptitle("Utilization for {}".format(self.node_name))
         mem_perc = [mem/self.total_mem for mem in self.avail_mem_at_times]
@@ -85,8 +85,8 @@ class Machine():
         
         plt.xlabel("time")
         plt.ylabel("Percentage utilized")
-        plt.savefig("plots/{}.jpg".format(self.node_name), bbox_inches="tight")
-
+        plt.savefig("plots/{}_{}.jpg".format(self.node_name, model_type), bbox_inches="tight")
+        plt.close(fig)
     def __repr__(self):
         s = "Machine("
         for key, value in self.__dict__.items():
