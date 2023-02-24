@@ -24,7 +24,7 @@ class Scheduler():
             m.plot_usage(self.model_type)
     
     def reset(self, model_type:str):
-        chart_generation
+        #chart_generation
         self.machines = []
         self.global_clock = 0
         self.model_type = model_type
@@ -202,7 +202,7 @@ class Scheduler():
                     n_attributes += 1
 
                 if n_attributes == 0:
-                    print("{} has no virtual resources (all set to 0).".format(m.node_name))
+                    print("{} has no virtual resources configured (all <= 0).".format(m.node_name))
                     fill_margin = 10
                 else:
                     fill_margin = (mem_margin + cpu_margin + gpu_margin)/n_attributes
