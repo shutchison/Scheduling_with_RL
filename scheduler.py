@@ -18,7 +18,7 @@ class Scheduler():
     
     def conduct_simulation(self, machines_csv, jobs_csv):
         self.load_machines(machines_csv)
-        self.load_jobs( jobs_csv)
+        self.load_jobs(jobs_csv)
         start_time = datetime.now()
         while True:
             if not self.tick():
