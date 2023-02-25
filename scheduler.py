@@ -2,6 +2,7 @@ import queue
 from pprint import pprint
 from machine import Machine
 from job import Job
+from datetime import datetime
 
 class Scheduler():
     def __init__(self, model_type:str) -> None: # what scheduling method to use
@@ -15,6 +16,16 @@ class Scheduler():
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
     
+    def conduct_simulation(self, machines_csv, jobs_csv):
+        self.load_machines(machines_csv)
+        self.load_jobs( jobs_csv)
+        start_time = datetime.now()
+        while True:
+            if not self.tick():
+                break
+        end_time = datetime.now()
+        print("Simulation complete.  Simulation time: {}".format(end_time-start_time))
+        
     def machines_log_status(self):
         for m in self.machines:
             m.log_status(self.global_clock)
