@@ -5,35 +5,6 @@ from pprint import pprint
 import pandas as pd
 import numpy as np
 
-# f = open("all_jobs_2021_part1.csv", "r")
-# lines = f.readlines()
-# f.close()
-# lines = list(map(str.strip, lines))
-# 
-# headers = lines[0].split(",")
-# print(headers)
-# 
-# Job = namedtuple("Job", headers)
-# jobs = []
-# 
-# for line in lines[1:]:
-    # jobs.append(Job(*line.split(",")))
-#     
-# f = open("all_jobs_2021_part2.csv", "r")
-# lines = f.readlines()
-# f.close()
-# lines = list(map(str.strip, lines))
-# for line in lines[1:]:
-    # jobs.append(Job(*line.split(",")))
-# 
-# print("{} jobs found".format(len(jobs)))
-# 
-# pprint(jobs[:10])
-
-#part1 = pd.read_csv("all_jobs_2021_part1.csv")
-#part2 = pd.read_csv("all_jobs_2021_part2.csv")
-#jobs = pd.concat([part1, part2])
-
 jobs = pd.read_csv("all_jobs_2021.csv")
 print("{} jobs found".format(len(jobs)))
 print(jobs[:10])
