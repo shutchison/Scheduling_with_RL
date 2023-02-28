@@ -4,6 +4,7 @@ from machine import Machine
 from job import Job
 from datetime import datetime
 import csv
+import logging
 
 class Scheduler():
     def __init__(self, model_type:str) -> None: # what scheduling method to use
@@ -17,6 +18,12 @@ class Scheduler():
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
     
+        logging.basicConfig(filename="output_files/simulation.log", level="DEBUG")
+        self.logger = logging.getLogger("Scheduling")
+        
+        self.csv_outfile_name = "output_files/test.csv"
+        self.header_written = False
+        
     def conduct_simulation(self, machines_csv, jobs_csv):
         self.load_machines(machines_csv)
         self.load_jobs(jobs_csv)
@@ -75,7 +82,7 @@ class Scheduler():
         # initialize global clock to be the submission time of the first job
         self.global_clock = self.future_jobs.queue[0][0]
 
-    def log_training_data_csv(self, job, machines, assignment):
+    def log_training_data_csv(self, job, machines, assignment, action):
         machine_data = []
         machine_headers = []
 
@@ -110,11 +117,17 @@ class Scheduler():
         job_data.append(job.start_time)
         job_data.append(job.end_time)
 
-        headers = ["Clock", "Job", "Assignment", "Job.req_mem", "Job.req_cpus", "Job.req_gpus", "Job.req_duration", "Job.actual_duration", "Job.submission_time", "Job.start_time", "Job.end_time"] + machine_headers
+        headers = ["Clock", "Job", "Action", "Assignment", "Job.req_mem", "Job.req_cpus", "Job.req_gpus", "Job.req_duration", "Job.actual_duration", "Job.submission_time", "Job.start_time", "Job.end_time"] + machine_headers
 
-        with open('output_files/test.csv', 'a', newline='') as csvfile:
+        if not self.header_written:
+            f = open(self.csv_outfile_name, "w")
+            f.write(",".join(headers) + "\n")
+            f.close()
+            self.header_written = True
+        
+        with open(self.csv_outfile_name, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow([self.global_clock, job.job_name] + [assignment] + job_data + machine_data)
+            writer.writerow([self.global_clock, job.job_name, action] + [assignment] + job_data + machine_data)
 
     def tick(self):
         # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
@@ -131,7 +144,7 @@ class Scheduler():
                 break
             elif first_submit == self.global_clock:
                 job = self.future_jobs.get()[1]
-                #print("{} submitted at time {}".format(job.job_name, self.global_clock))
+                self.logger.info("{} submitted at time {}".format(job.job_name, self.global_clock))
                 self.job_queue.append(job)
 
         # stop all jobs who end at the current time and move them to completed
@@ -145,11 +158,12 @@ class Scheduler():
                 for m in self.machines:
                     for j in m.running_jobs:
                         if job.job_name == j.job_name:
-                            #print("job {} ending at time {}".format(job.job_name, self.global_clock))
+                            self.logger.info("job {} ending at time {}".format(job.job_name, self.global_clock))
                             found = True
                             m.stop_job(job.job_name)
                             self.completed_jobs.append(job)
                             self.machines_log_status()
+                            self.log_training_data_csv(job, self.machines, m.node_name, "Stop")
                             break
                     if found:
                         break
@@ -167,11 +181,11 @@ class Scheduler():
             for index, job in enumerate(self.job_queue):
                 scheduled, machine = self.schedule(job)
                 if scheduled:
-                    # print("job {} started at time {}".format(job.job_name, self.global_clock))
+                    self.logger.info("job {} started at time {}".format(job.job_name, self.global_clock))
                     any_scheduled = True
                     self.running_jobs.put( (job.end_time, job) )
                     self.job_queue = self.job_queue[:index] + self.job_queue[index+1:]
-                    self.log_training_data_csv(job, self.machines, machine)
+                    self.log_training_data_csv(job, self.machines, machine, "Start")
                     self.machines_log_status()
                     break
             if not any_scheduled:
