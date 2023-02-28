@@ -3,6 +3,7 @@ from pprint import pprint
 from machine import Machine
 from job import Job
 from datetime import datetime
+import csv
 
 class Scheduler():
     def __init__(self, model_type:str) -> None: # what scheduling method to use
@@ -71,6 +72,47 @@ class Scheduler():
         # initialize global clock to be the submission time of the first job
         self.global_clock = self.future_jobs.queue[0][0]
 
+    def log_training_data_csv(self, job, machines, assignment):
+        machine_data = []
+        machine_headers = []
+
+        # This is ugly, headers aren't being inserted yet
+        ctr = 1
+        for m in machines:
+            machine_headers.append("Machine{}.node_name".format(ctr))
+            machine_headers.append("Machine{}.total_mem".format(ctr))
+            machine_headers.append("Machine{}.avail_mem".format(ctr))
+            machine_headers.append("Machine{}.total_cpus".format(ctr))
+            machine_headers.append("Machine{}.avail_cpus".format(ctr))
+            machine_headers.append("Machine{}.total_gpus".format(ctr))
+            machine_headers.append("Machine{}.avail_gpus".format(ctr))
+
+            machine_data.append(m.node_name)
+            machine_data.append(m.total_mem)
+            machine_data.append(m.avail_mem)
+            machine_data.append(m.total_cpus)
+            machine_data.append(m.avail_cpus)
+            machine_data.append(m.total_gpus)
+            machine_data.append(m.avail_gpus)
+
+            ctr = ctr+1
+        
+        job_data = []
+        job_data.append(job.req_mem)
+        job_data.append(job.req_cpus)
+        job_data.append(job.req_gpus)
+        job_data.append(job.req_duration)
+        job_data.append(job.actual_duration)
+        job_data.append(job.submission_time)
+        job_data.append(job.start_time)
+        job_data.append(job.end_time)
+
+        headers = ["Clock", "Job", "Assignment", "Job.req_mem", "Job.req_cpus", "Job.req_gpus", "Job.req_duration", "Job.actual_duration", "Job.submission_time", "Job.start_time", "Job.end_time"] + machine_headers
+
+        with open('output_files/test.csv', 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([self.global_clock, job.job_name] + [assignment] + job_data + machine_data)
+
     def tick(self):
         # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
         # move these jobs to self.job_queue ordered based on job.submision_time
@@ -120,12 +162,13 @@ class Scheduler():
         while not none_can_be_scheduled:
             any_scheduled = False
             for index, job in enumerate(self.job_queue):
-                scheduled = self.schedule(job)
+                scheduled, machine = self.schedule(job)
                 if scheduled:
                     # print("job {} started at time {}".format(job.job_name, self.global_clock))
                     any_scheduled = True
                     self.running_jobs.put( (job.end_time, job) )
                     self.job_queue = self.job_queue[:index] + self.job_queue[index+1:]
+                    self.log_training_data_csv(job, self.machines, machine)
                     self.machines_log_status()
                     break
             if not any_scheduled:
@@ -181,9 +224,9 @@ class Scheduler():
         if assigned_machine is not None:
             self.set_job_time(job)
             assigned_machine.start_job(job)
-            return True
+            return True, m.node_name
         else:
-            return False
+            return False, None
         
 
     def best_bin_first(self, job):
@@ -225,19 +268,19 @@ class Scheduler():
         if assigned_machine is not None:
             self.set_job_time(job)
             assigned_machine.start_job(job)
-            return True
+            return True, m.node_name
         else:
-            return False
+            return False, None
 
     def PPG(self, job):
-        return False
+        return False, None
         # call self.PPG.predict (or whatever the API says to do) to decide where to schedule this job
         # recall we have three contraints to satisfy: machine must have adequate memory, cpus, and gpus for this job
         # call self.set_job_time to record its time span
         # call machine.start_job to start the job running
 
     def DDPG(self, job):
-        return False
+        return False, None
         # call self.DDPG.predict (or whatever the API says to do) to decide where to schedule this job
         # recall we have three contraints to satisfy: machine must have adequate memory, cpus, and gpus for this job
         # call self.set_job_time to record its time span
