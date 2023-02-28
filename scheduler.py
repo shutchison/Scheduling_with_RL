@@ -20,12 +20,15 @@ class Scheduler():
     def conduct_simulation(self, machines_csv, jobs_csv):
         self.load_machines(machines_csv)
         self.load_jobs(jobs_csv)
+        print("Model is: {}".format(self.model_type))
         start_time = datetime.now()
         while True:
             if not self.tick():
                 break
         end_time = datetime.now()
         print("Simulation complete.  Simulation time: {}".format(end_time-start_time))
+        aqt = self.calculate_metrics()
+        print("Avg. Queue Time was {}".format(aqt))
         
     def machines_log_status(self):
         for m in self.machines:
