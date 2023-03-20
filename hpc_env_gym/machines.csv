@@ -1,0 +1,9 @@
+MachineName,TotalMemory,TotalCPUs,TotalGPUs
+computeNode1,256000000,64,0
+computeNode2,256000000,64,0
+computeNode3,256000000,64,0
+computeNode4,256000000,64,0
+computeNode5,256000000,64,0
+bigMemNode1,1024000000,24,0
+bigMemNode2,1024000000,24,0
+gpuNode1,512000000,64,8
