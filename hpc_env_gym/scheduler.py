@@ -5,7 +5,7 @@ from job import Job
 from datetime import datetime
 import csv
 import logging
-
+from algorithm_visualization import Algorithm_Visualization
 class Scheduler():
     def __init__(self, model_type:str) -> None: # what scheduling method to use
         self.machines = []
@@ -17,6 +17,7 @@ class Scheduler():
         self.job_queue = []
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
+        self.algo_viz = Algorithm_Visualization(self.machines)
         
     def conduct_simulation(self, machines_csv, jobs_csv):
         self.load_machines(machines_csv)
@@ -60,6 +61,7 @@ class Scheduler():
         for line in lines[1:]:
             elements = line.split(",")
             self.machines.append(Machine(elements[0], *map(int, elements[1:])))
+        return self.machines
     
     def load_jobs(self, csv_file_name):
         f = open(csv_file_name)
@@ -198,6 +200,8 @@ class Scheduler():
             first_end = self.running_jobs.queue[0][0]
         
         self.global_clock = min(first_submit, first_end)
+
+        self.algo_viz.run_visualizer()
 
         if self.global_clock == 1e100:
             print("Something has gone wrong updating the global clock.")
