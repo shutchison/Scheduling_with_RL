@@ -16,6 +16,10 @@ class Machine():
         self.avail_gpus = total_gpus
         self.running_jobs = []
 
+        self.mem_util_pct = 0
+        self.cpus_util_pct = 0
+        self.gpus_util_pct = 0
+
         self.tick_times = []
         self.avail_mem_at_times = []
         self.avail_cpus_at_times = []
@@ -32,6 +36,8 @@ class Machine():
         self.avail_mem -= job.req_mem
         self.avail_cpus -= job.req_cpus
         self.avail_gpus -= job.req_gpus
+
+        self.update_pct_util()
 
         assert(self.avail_cpus >= 0), "Assigned {} to {} with insufficient cpu resources.".format(job, self.node_name)
         assert(self.avail_mem >= 0), "Assigned {} to {} with insufficient mem resources.".format(job, self.node_name)
@@ -53,10 +59,19 @@ class Machine():
             self.avail_cpus += job_to_remove.req_cpus
             self.avail_gpus += job_to_remove.req_gpus
 
+            self.update_pct_util()
+
             assert(self.avail_mem <= self.total_mem)
             assert(self.avail_cpus <= self.total_cpus)
             assert(self.avail_gpus <= self.total_gpus)
+    
+    def update_pct_util(self):
         
+        self.mem_util_pct = (1 - self.avail_mem/self.total_mem)*100
+        self.cpus_util_pct = (1 - self.avail_cpus/self.total_cpus)*100
+        if self.total_gpus > 0: self.gpus_util_pct = (1 - self.avail_gpus/self.total_gpus)*100
+        else: self.gpus_util_pct = 100
+
     def __repr__(self):
         s = "Machine("
         for key, value in self.__dict__.items():

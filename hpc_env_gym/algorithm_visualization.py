@@ -71,7 +71,7 @@ class Algorithm_Visualization():
         n_machines = len(machines)
         util_sum = 0
         for m in self.machines:
-            util_sum = util_sum + ((100-m.avail_cpus_pct) + (100-m.avail_mem_pct) + (100-m.avail_gpus_pct))/3
+            util_sum = util_sum + (m.mem_util_pct + m.cpus_util_pct + m.gpus_util_pct)/3
         avg_utilization = util_sum/n_machines
         self.pct_util.append(avg_utilization)
         self.tick = self.tick + 1
@@ -86,7 +86,7 @@ class Algorithm_Visualization():
     def package_machine_data_for_bar_plots(self):
         m_data = []
         for m in self.machines:
-            m_data.append((m.node_name, (100-m.avail_cpus_pct, 100-m.avail_mem_pct, 100-m.avail_gpus_pct)))
+            m_data.append((m.node_name, (m.cpus_util_pct, m.mem_util_pct, m.gpus_util_pct)))
         return m_data
 
     def draw_bar_plots(self, fig, data_sets):
@@ -105,8 +105,9 @@ class Algorithm_Visualization():
             plot_num = plot_num + 1
 
 if (__name__ == '__main__'):
-    sched = Scheduler("bbf")
-    machines = sched.load_machines("machines.csv")
+    sched = Scheduler()
+    sched.load_cluster("machines.csv")
+    machines = sched.cluster.machines
     viz = Algorithm_Visualization(machines)
     viz.run_visualizer()
     #sched.conduct_simulation("machines.csv","jobs.csv")
