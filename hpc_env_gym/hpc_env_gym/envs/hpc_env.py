@@ -138,10 +138,14 @@ class HPCEnv(gym.Env):
             machines_csv_name = options["machines_csv"]
         except KeyError as e:
             raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
+        except TypeError as e:
+            raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
         try:
             jobs_csv_name = options["jobs_csv"]
         except KeyError as e:
             raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
+        except TypeError as e:
+            raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
             
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         if self.render_mode == "human":
@@ -187,7 +191,7 @@ class HPCEnv(gym.Env):
         print(job)
         
         # start the job on the 
-        self.scheduler.cluster.machines[0].start_job(job)
+        self.scheduler.cluster.machines[action].start_job(job)
 
         # The reward is determined if this job is the "best bin first" machine
         # in the event this job was scheduled on the "best bin", the reward will be 1, else 0.
@@ -205,6 +209,7 @@ class HPCEnv(gym.Env):
         pass
     
     def render(self):
-        pass
+        if self.render_mode=="human":
+            self.alg_vis.run_visualizer()
     
         
