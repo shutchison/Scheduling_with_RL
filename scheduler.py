@@ -238,6 +238,7 @@ class Scheduler():
         for m in self.machines:
             if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
                 assigned_machine = m
+                break
         if assigned_machine is not None:
             self.set_job_time(job)
             assigned_machine.start_job(job)
