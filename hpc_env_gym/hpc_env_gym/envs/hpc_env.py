@@ -6,7 +6,7 @@ from scheduler import Scheduler
 from job import Job
 from machine import Machine
 import numpy as np
-
+from algorithm_visualization import Algorithm_Visualization
 
 MAX_MEM = 1024000001 # largest amount of memory in any one node
 MAX_CPUs = 65 # largest number of CPUs in any one node
@@ -21,6 +21,7 @@ class HPCEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
     
     def __init__(self, render_mode=None):
+        self.render_mode = render_mode
         #self.cluster = Cluster()
         self.scheduler = Scheduler()
         # Define the observation space as a dictionary which represents
@@ -59,7 +60,7 @@ class HPCEnv(gym.Env):
         
         self.observation_space = spaces.Dict(spaces_combined)
         
-        self.action_space = spaces.Discrete(2)
+        self.action_space = spaces.Discrete(NUM_MACHINES_IN_CLUSTER)
     
     def node_num_to_name(self):
         pass
@@ -143,11 +144,15 @@ class HPCEnv(gym.Env):
             raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
             
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
-        
+        if self.render_mode == "human":
+            self.alg_vis = Algorithm_Visualization(self.scheduler.cluster.machines)
+            
         obs = self._get_obs()
         #print("obs is of type {}:".format(type(obs)))
         #pprint(obs)
         info = {}
+        
+        
         
         return obs, info
     
@@ -174,11 +179,20 @@ class HPCEnv(gym.Env):
 
         done (bool) - A boolean value for if the episode has ended, in which case further step() calls will return undefined results. A done signal may be emitted for different reasons: Maybe the task underlying the environment was solved successfully, a certain timelimit was exceeded, or the physics simulation has entered an invalid state.
         """
-        if action == 1:
-            job = self.scheduler.job_queue.pop(0)
-            print(job)
-            self.scheduler.cluster.machines[0].start_job(job)
+    
+        # The action is the index of the machine on which to start this job
         
+        # loop through all the jobs in the job queue and select the shortest
+        job = self.scheduler.job_queue.pop(0)
+        print(job)
+        
+        # start the job on the 
+        self.scheduler.cluster.machines[0].start_job(job)
+
+        # The reward is determined if this job is the "best bin first" machine
+        # in the event this job was scheduled on the "best bin", the reward will be 1, else 0.
+        
+    
         observation = self._get_obs()
         reward = 1
         terminated = False
