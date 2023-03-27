@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 from datetime import datetime
+from resource import Resource
+from job import Job
 
 class Machine():
     def __init__(self, node_name:str, # for identification purposes
@@ -9,16 +11,10 @@ class Machine():
         self.node_name = node_name
         self.total_mem = total_mem
         self.avail_mem = total_mem
-        self.avail_mem_pct = 100
-        
         self.total_cpus = total_cpus
         self.avail_cpus = total_cpus
-        self.avail_cpus_pct = 100
-
         self.total_gpus = total_gpus
         self.avail_gpus = total_gpus
-        self.avail_gpus_pct = 100
-
         self.running_jobs = []
 
         self.tick_times = []
@@ -38,13 +34,9 @@ class Machine():
         self.avail_cpus -= job.req_cpus
         self.avail_gpus -= job.req_gpus
 
-        self.avail_mem_pct = self.avail_mem/self.total_mem*100
-        self.avail_cpus_pct = self.avail_cpus/self.total_cpus*100
-        self.avail_gpus_pct = self.avail_gpus/self.total_gpus*100
-        
-        assert(self.avail_cpus >= 0)
-        assert(self.avail_mem >= 0)
-        assert(self.avail_gpus >= 0)
+        assert(self.avail_cpus >= 0), "Assigned {} to {} with insufficient cpu resources.".format(job, self.node_name)
+        assert(self.avail_mem >= 0), "Assigned {} to {} with insufficient mem resources.".format(job, self.node_name)
+        assert(self.avail_gpus >= 0), "Assigned {} to {} with insufficient gpu resources.".format(job, self.node_name)
 
     def stop_job(self, job_name:str):
         # remove a job and free up the resources it was using
@@ -62,45 +54,10 @@ class Machine():
             self.avail_cpus += job_to_remove.req_cpus
             self.avail_gpus += job_to_remove.req_gpus
 
-            self.avail_mem_pct = self.avail_mem/self.total_mem*100
-            self.avail_cpus_pct = self.avail_cpus/self.total_cpus*100
-            self.avail_gpus_pct = self.avail_gpus/self.total_gpus*100
-
             assert(self.avail_mem <= self.total_mem)
             assert(self.avail_cpus <= self.total_cpus)
             assert(self.avail_gpus <= self.total_gpus)
-            
-    def plot_usage(self, model_type):
-        fig = plt.figure(figsize=[12,10])
-        fig.suptitle("Utilization for {}".format(self.node_name))
-        mem_perc = [mem/self.total_mem for mem in self.avail_mem_at_times]
-        cpu_perc = [cpu/self.total_cpus for cpu in self.avail_cpus_at_times]
-        if self.total_gpus != 0:
-            gpu_perc = [mem/self.total_gpus for mem in self.avail_gpus_at_times]
-        else:
-            gpu_perc = [0 for _ in self.avail_gpus_at_times]
-        ticks = [datetime.fromtimestamp(t) for t in self.tick_times]
         
-        plt.plot(ticks,
-                 mem_perc, 
-                 color="red", 
-                 label="Memory Utilization")
-
-        plt.plot(ticks, 
-                 gpu_perc, 
-                 color="blue", 
-                 label="GPU Utilization")
-
-        plt.plot(ticks, 
-                cpu_perc, 
-                color="green", 
-                label="CPU Utilization")
-        plt.legend()
-        
-        plt.xlabel("time")
-        plt.ylabel("Percentage utilized")
-        plt.savefig("plots/{}_{}.jpg".format(self.node_name, model_type), bbox_inches="tight")
-        plt.close(fig)
     def __repr__(self):
         s = "Machine("
         for key, value in self.__dict__.items():
@@ -112,4 +69,3 @@ class Machine():
         for key, value in self.__dict__.items():
             s += str(key) + "=" + repr(value) + ", "
         return s[:-2] + ")"   
-    
