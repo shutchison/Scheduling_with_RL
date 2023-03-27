@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 from datetime import datetime
-from resource import Resource
 from job import Job
 
 class Machine():
