@@ -86,20 +86,21 @@ class Algorithm_Visualization():
     def package_machine_data_for_bar_plots(self):
         m_data = []
         for m in self.machines:
-            m_data.append((m.node_name, (m.avail_cpus_pct, m.avail_mem_pct, m.avail_gpus_pct)))
+            m_data.append((m.node_name, (100-m.avail_cpus_pct, 100-m.avail_mem_pct, 100-m.avail_gpus_pct)))
         return m_data
 
     def draw_bar_plots(self, fig, data_sets):
         plot_num = 1
-        for i in range(12):
-            machine_name = data_sets(i)[0]
-            machine_data = data_sets(i)[1]
+        for i in range(len(data_sets)):
+            machine_name = data_sets[i][0]
+            machine_data = data_sets[i][1]
             ax = fig.add_subplot(4,3,plot_num)
             fig.set_size_inches(self.PLOT_X_SIZE*INCHES_PER_PIXEL, self.PLOT_Y_SIZE*INCHES_PER_PIXEL)
             fig.tight_layout()
             labels=["CPUs","Mem","GPUs"]
             b = ax.bar(labels, machine_data)
             ax.set(ylabel='% Utilization', title=machine_name)
+            ax.set_ylim([0, 100])
             ax.bar_label(b)
             plot_num = plot_num + 1
 
