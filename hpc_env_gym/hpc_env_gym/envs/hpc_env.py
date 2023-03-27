@@ -190,19 +190,64 @@ class HPCEnv(gym.Env):
         job = self.scheduler.job_queue.pop(0)
         print(job)
         
-        # start the job on the 
-        self.scheduler.cluster.machines[action].start_job(job)
-
         # The reward is determined if this job is the "best bin first" machine
         # in the event this job was scheduled on the "best bin", the reward will be 1, else 0.
+        min_fill_margin = 10
+        assigned_machine = None
+        assigned_machine_index = None
+        for machine_index, m in enumerate(self.scheduler.cluster.machines):
+            if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
+                print("checking {}".format(m.node_name))
+                # not all nodes have both GPUs and CPUs, so init each margin to 0
+                mem_margin = 0.0
+                cpu_margin = 0.0
+                gpu_margin = 0.0
+
+                # count how many attributes the node has to normalize the final margin
+                n_attributes = 0
+
+                if m.total_mem > 0:
+                    mem_margin = (m.avail_mem - job.req_mem)/m.total_mem
+                    n_attributes += 1
+
+                if m.total_cpus > 0:
+                    cpu_margin = (m.avail_cpus - job.req_cpus)/m.total_cpus
+                    n_attributes += 1
+
+                if m.total_gpus > 0:
+                    gpu_margin = (m.avail_gpus - job.req_gpus)/m.total_gpus
+                    n_attributes += 1
+
+                if n_attributes == 0:
+                    print("{} has no virtual resources configured (all <= 0).".format(m.node_name))
+                    fill_margin = 10
+                else:
+                    fill_margin = (mem_margin + cpu_margin + gpu_margin)/n_attributes
+                print("{} has fill margin {}".format(m.node_name, fill_margin))
+                if fill_margin < min_fill_margin:
+                    min_fill_margin = fill_margin
+                    assigned_machine = m
+                    assigned_machine_index = machine_index
+        print("bff would assign this to {}, index {}.  min_fill_margin={}".format(assigned_machine.node_name, assigned_machine_index, min_fill_margin))
         
-    
+        if assigned_machine is not None:
+            if action == assigned_machine_index:
+                reward = 1
+            else:
+                reward = 0
+        else:
+            print("Some problem with reward!!")
+            reward = -1
+            
+        # start the job on the machine specified by the array index "action" argument
+        self.scheduler.cluster.machines[action].start_job(job)
+
         observation = self._get_obs()
-        reward = 1
         terminated = False
+        truncated = False
         info = {}
 
-        return observation, reward, terminated, False, info
+        return observation, reward, terminated, truncated, info
         
     def close(self):
         #check if renderer is "human" and destroy window if it is
