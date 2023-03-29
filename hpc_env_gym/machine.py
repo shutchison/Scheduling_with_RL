@@ -18,7 +18,7 @@ class Machine():
 
         self.mem_util_pct = 0
         self.cpus_util_pct = 0
-        self.gpus_util_pct = 0
+        self.gpus_util_pct = 0 if self.total_gpus > 0 else 100
 
         self.tick_times = []
         self.avail_mem_at_times = []

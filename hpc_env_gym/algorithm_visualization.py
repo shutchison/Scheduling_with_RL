@@ -100,14 +100,49 @@ class Algorithm_Visualization():
             labels=["CPUs","Mem","GPUs"]
             b = ax.bar(labels, machine_data)
             ax.set(ylabel='% Utilization', title=machine_name)
-            ax.set_ylim([0, 100])
-            ax.bar_label(b)
+            ax.set_ylim([0, 110])
+            ax.bar_label(b, fmt="%0.1f")
             plot_num = plot_num + 1
 
 if (__name__ == '__main__'):
-    sched = Scheduler()
-    sched.load_cluster("machines.csv")
-    machines = sched.cluster.machines
+    s = Scheduler()
+    s.load_cluster("machines.csv")
+    s.load_jobs("jobs.csv")
+    machines = s.cluster.machines
+    jobs = s.future_jobs
+    job = jobs.get(0)
+    s.cluster.machines[0].start_job(job[1])
+    job = jobs.get(0)
+    s.cluster.machines[1].start_job(job[1])
+    job = jobs.get(0)
+    s.cluster.machines[2].start_job(job[1])
+    job = jobs.get(0)
+    s.cluster.machines[3].start_job(job[1])
+    job = jobs.get(0)
+    s.cluster.machines[4].start_job(job[1])
+    job = jobs.get(0)
+    s.cluster.machines[5].start_job(job[1])
+    job = jobs.get(0)
+    #s.cluster.machines[6].start_job(job[1])
+    job = jobs.get(0)
+    s.cluster.machines[7].start_job(job[1])
+
     viz = Algorithm_Visualization(machines)
     viz.run_visualizer()
-    #sched.conduct_simulation("machines.csv","jobs.csv")
+    
+    '''
+    job = jobs.get(0)
+    s.cluster.machines[2].start_job(job[1])
+    viz = Algorithm_Visualization(machines)
+    viz.run_visualizer()
+
+    job = jobs.get(0)
+    s.cluster.machines[2].start_job(job[1])
+    viz = Algorithm_Visualization(machines)
+    viz.run_visualizer()
+
+    job = jobs.get(0)
+    s.cluster.machines[3].start_job(job[1])
+    viz = Algorithm_Visualization(machines)
+    viz.run_visualizer()
+    '''
