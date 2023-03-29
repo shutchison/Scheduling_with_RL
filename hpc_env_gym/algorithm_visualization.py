@@ -1,9 +1,9 @@
 import pyglet
+from pyglet import shapes
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
-import numpy as np
 from scheduler import *
 
 INCHES_PER_PIXEL = 1/plt.rcParams['figure.dpi']
@@ -13,8 +13,10 @@ class Algorithm_Visualization():
     # All numbers in pixels except where noted
     PLOT_X_SIZE = 750
     PLOT_Y_SIZE = 980
-    WINDOW_X_SIZE = PLOT_X_SIZE + 200
-    WINDOW_Y_SIZE = 1000
+    PLOT_Y_MARGIN = 20
+    QUEUE_X_SIZE = 200
+    WINDOW_X_SIZE = PLOT_X_SIZE + QUEUE_X_SIZE - 20 # not sure where this extra 20px is coming from
+    WINDOW_Y_SIZE = PLOT_Y_SIZE + PLOT_Y_MARGIN
     TITLE_BAR_SIZE = 60
 
     MAX_MACHINES = 12
@@ -24,8 +26,14 @@ class Algorithm_Visualization():
         self.window = pyglet.window.Window()
         self.pct_util = []
         self.tick = 0
+        self.max_cpus = -10
+        self.max_mem = -10
+        self.max_gpus = -10
+        self.get_max_resources_avail(self.machines)
+        self.batch = pyglet.graphics.Batch()
 
-    def run_visualizer(self):
+    def run_visualizer(self, job_queue):
+
         self.set_window_size_loc()
         fig = self.create_figure()
 
@@ -38,12 +46,19 @@ class Algorithm_Visualization():
         
         graphs = self.render_figure(fig)
         
+        # don't delete, batch library has aggressive garbage collection
+        # returning from a function causes shapes objects to be deleted they're unless stored somewhere
+        job_queue_graphic = self.draw_job_queue(job_queue)
+
         @self.window.event
         def on_draw():
             self.window.clear()
             graphs.blit(0, 0)
+            self.batch.draw()
+            job_queue_graphic[0].draw()
 
         pyglet.app.run()
+
 
     def set_window_size_loc(self):
         display = pyglet.canvas.Display()
@@ -101,15 +116,87 @@ class Algorithm_Visualization():
             b = ax.bar(labels, machine_data)
             ax.set(ylabel='% Utilization', title=machine_name)
             ax.set_ylim([0, 110])
-            ax.bar_label(b, fmt="%0.1f")
+            ax.bar_label(b, fmt="%0.1f%%")
             plot_num = plot_num + 1
+
+    def draw_job_queue(self, job_queue):
+        # X, Y, W, H
+
+        W = self.QUEUE_X_SIZE
+        H = 30
+        X = self.PLOT_X_SIZE
+        Y = self.PLOT_Y_SIZE
+
+        job_shapes = []
+
+        red = (255, 0, 0)
+        yellow = (255, 255, 0)
+        green = (0, 255, 0)
+        black = (0, 0, 0)
+        white = (255, 255, 255)
+
+        label = pyglet.text.Label('Job Queue',
+                          font_name='Times New Roman',
+                          font_size=20,
+                          x=X + self.QUEUE_X_SIZE/2, y=Y,
+                          anchor_x='center', anchor_y='top', color=(0,0,0,255))
+
+        job_shapes.append(label)
+
+        Y = Y - H
+
+        border = shapes.Rectangle(X, Y, W, H, color=white, batch=self.batch)
+        shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
+
+        job_shapes.append((shape,border))
+
+        Y = Y - H
+
+        for job in job_queue:
+            estim = self.estimate_global_job_load(job)
+
+            if estim < 8:
+                color = green
+            elif estim >= 8 and estim < 25:
+                color = yellow
+            else:
+                color = red
+
+            border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
+            shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=color, batch=self.batch)
+
+            Y = Y - H
+
+            job_shapes.append((shape,border))
+
+        return job_shapes
+
+    def get_max_resources_avail(self, machines):
+        for m in machines:
+            if m.total_mem > self.max_mem:
+                self.max_mem = m.total_mem
+            if m.total_cpus > self.max_cpus:
+                self.max_cpus = m.total_cpus
+            if m.total_gpus > self.max_gpus:
+                self.max_gpus = m.total_gpus
+    
+    def estimate_global_job_load(self, job):
+        cpu_pct = job.req_cpus/self.max_cpus
+        mem_pct = job.req_mem/self.max_mem
+        gpu_pct = job.req_gpus/self.max_gpus
+        return ((cpu_pct + mem_pct + gpu_pct) / 3)*100
+
 
 if (__name__ == '__main__'):
     s = Scheduler()
     s.load_cluster("machines.csv")
     s.load_jobs("jobs.csv")
+
     machines = s.cluster.machines
     jobs = s.future_jobs
+
+    viz = Algorithm_Visualization(machines)
+
     job = jobs.get(0)
     s.cluster.machines[0].start_job(job[1])
     job = jobs.get(0)
@@ -126,9 +213,12 @@ if (__name__ == '__main__'):
     #s.cluster.machines[6].start_job(job[1])
     job = jobs.get(0)
     s.cluster.machines[7].start_job(job[1])
+    for _ in range(5):
+        job = jobs.get(0)[1]
+        s.job_queue.append(job)
+        print("Job {} System Load: {}%".format(job.job_name,viz.estimate_global_job_load(job)))
 
-    viz = Algorithm_Visualization(machines)
-    viz.run_visualizer()
+    viz.run_visualizer(s.job_queue)
     
     '''
     job = jobs.get(0)
