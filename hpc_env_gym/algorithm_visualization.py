@@ -131,7 +131,7 @@ class Algorithm_Visualization():
         job_shapes = []
         job_labels = []
 
-        # there's probably a better way to do this
+        # there's probably a better way to do colors
         red    = (255,   0,   0)
         yellow = (255, 255,   0)
         green  = (0,   255,   0)
@@ -143,10 +143,10 @@ class Algorithm_Visualization():
                                 font_name='Times New Roman',
                                 font_size=20,
                                 x=label_x_loc, y=Y,
-                                anchor_x='center', anchor_y='top', color=(0,0,0,255))
+                                anchor_x='center', anchor_y='top', color=(0,0,0,255)) # label colors are RGBA, last value is opacity
         job_labels.append(title_label)
 
-        Y = Y - H # move the position down by one queue shape's worth
+        Y = Y - H # move the position down by one queue shape height worth
 
         title_border = shapes.Rectangle(X, Y, W, H, color=white, batch=self.batch)
         title_fill = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
@@ -156,14 +156,7 @@ class Algorithm_Visualization():
         Y = Y - H
 
         for job in job_queue:
-            estim = self.estimate_global_job_load(job)
-
-            if estim < 8:
-                color = green
-            elif estim >= 8 and estim < 25:
-                color = yellow
-            else:
-                color = red
+            color = self.estimate_global_job_load(job)
 
             border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
             shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=color, batch=self.batch)
@@ -191,10 +184,47 @@ class Algorithm_Visualization():
                 self.max_gpus = m.total_gpus
     
     def estimate_global_job_load(self, job):
-        cpu_pct = job.req_cpus/self.max_cpus
-        mem_pct = job.req_mem/self.max_mem
-        gpu_pct = job.req_gpus/self.max_gpus
-        return ((cpu_pct + mem_pct + gpu_pct) / 3)*100
+        # These numbers come from inspecting the full data set
+        # percentile calcs
+        mem_req_33 = 4000000
+        mem_req_66 = 15000000
+        cpu_req_33 = 1
+        cpu_req_66 = 3
+
+        # These numbers come from inspecting the test data set
+        # percentile calcs
+        mem_req_33 = 4000000
+        mem_req_66 = 10000000
+        cpu_req_33 = 1
+        cpu_req_66 = 1
+
+        # there's probably a better way to do colors
+        red    = (255,   0,   0)
+        yellow = (255, 255,   0)
+        green  = (0,   255,   0)
+
+        count = 0
+
+        if job.req_cpus > cpu_req_33 and job.req_cpus <= cpu_req_66:
+            count = count + 1
+
+        if job.req_mem > mem_req_33 and job.req_mem <= mem_req_66:
+            count = count + 1
+
+        if job.req_cpus > cpu_req_66:
+            count = count + 1
+
+        if job.req_mem > mem_req_66:
+            count = count + 1
+        
+        if count <= 1:
+            color = green
+        elif count == 2:
+            color = yellow
+        else:
+            color = red
+
+        return color
 
 
 if (__name__ == '__main__'):
@@ -223,9 +253,9 @@ if (__name__ == '__main__'):
     #s.cluster.machines[6].start_job(job[1])
     job = jobs.get(0)
     s.cluster.machines[7].start_job(job[1])
-    for _ in range(5):
+    for i in range(90):
         job = jobs.get(0)[1]
-        s.job_queue.append(job)
-        print("Job {} System Load: {}%".format(job.job_name,viz.estimate_global_job_load(job)))
+        if i > 60:
+            s.job_queue.append(job)
 
     viz.run_visualizer(s.job_queue)
