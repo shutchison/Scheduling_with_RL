@@ -15,7 +15,8 @@ class Algorithm_Visualization():
     PLOT_Y_SIZE = 980
     PLOT_Y_MARGIN = 20
     QUEUE_X_SIZE = 200
-    QUEUE_ITEM_HEIGHT = int(PLOT_Y_SIZE/30)
+    MAX_NUM_IN_QUEUE = 30
+    QUEUE_ITEM_HEIGHT = (PLOT_Y_SIZE)/(MAX_NUM_IN_QUEUE + 2) # add 2 for a title item and future jobs left item
     WINDOW_X_SIZE = PLOT_X_SIZE + QUEUE_X_SIZE - 20 # not sure where this extra 20px is coming from
     WINDOW_Y_SIZE = PLOT_Y_SIZE + PLOT_Y_MARGIN
     TITLE_BAR_SIZE = 60
@@ -27,8 +28,8 @@ class Algorithm_Visualization():
 
     MAX_MACHINES = 12
     
-    def __init__(self, jobs, machines) -> None:
-        self.inspect_jobs(jobs)
+    def __init__(self, all_jobs, machines) -> None:
+        self.inspect_jobs(all_jobs)
         self.machines = machines
         self.window = pyglet.window.Window()
         self.pct_util = []
@@ -42,14 +43,12 @@ class Algorithm_Visualization():
             job = jobs.queue[i][1]
             req_cpu_list.append(job.req_cpus)
             req_mem_list.append(job.req_mem)
-
         self.REQ_MEM_TERCILE_1 = np.quantile(req_mem_list,.33)
         self.REQ_MEM_TERCILE_2 = np.quantile(req_mem_list,.66)
         self.REQ_CPU_TERCILE_1 = np.quantile(req_cpu_list,.33)
         self.REQ_CPU_TERCILE_2 = np.quantile(req_cpu_list,.66)
 
-    def run_visualizer(self, job_queue):
-
+    def run_visualizer(self, job_queue, jobs_left):
         self.set_window_size_loc()
         fig = self.create_figure()
 
@@ -64,7 +63,7 @@ class Algorithm_Visualization():
         
         # Don't remove returned vars, batch library has aggressive garbage collection.
         # Returning from a function causes shape objects to be deleted unless they're stored somewhere
-        job_queue_shapes, job_queue_labels = self.draw_job_queue(job_queue)
+        job_queue_shapes, job_queue_labels = self.draw_job_queue(job_queue, jobs_left)
 
         @self.window.event
         def on_draw():
@@ -136,12 +135,14 @@ class Algorithm_Visualization():
             ax.bar_label(b, fmt="%0.1f%%")
             plot_num = plot_num + 1
 
-    def draw_job_queue(self, job_queue):
-
-        W = self.QUEUE_X_SIZE
-        H = self.QUEUE_ITEM_HEIGHT
-        X = self.PLOT_X_SIZE
-        Y = self.PLOT_Y_SIZE
+    def draw_job_queue(self, job_queue, jobs_left):
+        # =======================================================
+        #    Sets some starter values for queue representation
+        # =======================================================
+        W = self.QUEUE_X_SIZE       # shape width
+        H = self.QUEUE_ITEM_HEIGHT  # shape height
+        X = self.PLOT_X_SIZE        # shape x position
+        Y = self.PLOT_Y_SIZE        # shape y position
 
         job_shapes = []
         job_labels = []
@@ -150,7 +151,12 @@ class Algorithm_Visualization():
         black  = (  0,   0,   0)
         white  = (255, 255, 255)
 
+        # labels get positioned differently than shapes
         label_x_loc = X + self.QUEUE_X_SIZE/2
+
+        # =======================================================
+        #              Creates the top title block
+        # =======================================================
         title_label = pyglet.text.Label('Job Queue',
                                 font_name='Times New Roman',
                                 font_size=20,
@@ -161,14 +167,22 @@ class Algorithm_Visualization():
                                 color=(0,0,0,255)) # label colors are RGBA, last value is opacity
 
         job_labels.append(title_label)
+        
+        # Moves the vertical position down by one queue-shape-height's worth.
+        # Labels get positioned by top edge position and shapes by bottom, so
+        # increment the Y position appropriately
+        Y = Y - H 
 
-        Y = Y - H # move the vertical position down by one queue-shape-height's worth
-
-        title_border = shapes.Rectangle(X, Y, W, H, color=white, batch=self.batch)
+        # create simple rectangle and store it in a list for future rendering
+        title_border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
         title_fill = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
 
         job_shapes.append((title_border,title_fill))
 
+        # ========================================================
+        # Loop through the queue to create representative shapes
+        # ========================================================
+        job_ctr = 1
         for job in job_queue:
             Y = Y - H
             color = self.categorize_job_load(job)
@@ -194,6 +208,47 @@ class Algorithm_Visualization():
 
             job_shapes.append((shape,border))
             job_labels.append(label)
+
+            job_ctr = job_ctr + 1
+
+            # If there are too many items in the queue to display, use the last spot
+            # to make a note of that
+            if job_ctr > self.MAX_NUM_IN_QUEUE-1: # -1 because we take up a valid spot to make this note
+                Y = Y - H
+                border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
+                shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=(255,255,0), batch=self.batch) # yellow color
+
+                label = pyglet.text.Label("+{} more".format(len(job_queue)-(self.MAX_NUM_IN_QUEUE-1)),
+                                        font_name='Times New Roman',
+                                        font_size=12,
+                                        x=label_x_loc,
+                                        y=Y+H/2,
+                                        anchor_x='center',
+                                        anchor_y='center',
+                                        color=(0,0,0,255)) # label colors are RGBA, last value is opacity
+
+                job_shapes.append((shape,border))
+                job_labels.append(label)
+                break
+
+        # ========================================================
+        #       Adds an indicator for # future jobs remaining
+        # ========================================================
+        Y = 0
+        future_label = pyglet.text.Label("Future Jobs: {}".format(jobs_left),
+                                font_name='Times New Roman',
+                                font_size=12,
+                                x=label_x_loc,
+                                y=Y+H/2,
+                                anchor_x='center',
+                                anchor_y='center',
+                                color=(0,0,0,255)) # label colors are RGBA, last value is opacity
+        
+        future_border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
+        future_fill = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
+
+        job_shapes.append((future_fill,future_border))
+        job_labels.append(future_label)
 
         return job_shapes, job_labels
     
@@ -253,9 +308,9 @@ if (__name__ == '__main__'):
     #s.cluster.machines[6].start_job(job[1])
     job = jobs.get(0)
     s.cluster.machines[7].start_job(job[1])
-    for i in range(100):
+    for i in range(102):
         job = jobs.get(0)[1]
-        if i > 70:
+        if i >= 70:
             s.job_queue.append(job)
 
-    viz.run_visualizer(s.job_queue)
+    viz.run_visualizer(s.job_queue,"Not Given")
