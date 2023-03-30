@@ -1,6 +1,6 @@
 import pyglet
 from pyglet import shapes
-
+import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
@@ -20,18 +20,33 @@ class Algorithm_Visualization():
     WINDOW_Y_SIZE = PLOT_Y_SIZE + PLOT_Y_MARGIN
     TITLE_BAR_SIZE = 60
 
+    REQ_MEM_TERCILE_1 = 0
+    REQ_MEM_TERCILE_2 = 0
+    REQ_CPU_TERCILE_1 = 0
+    REQ_CPU_TERCILE_2 = 0
+
     MAX_MACHINES = 12
     
-    def __init__(self, machines) -> None:
+    def __init__(self, jobs, machines) -> None:
+        self.inspect_jobs(jobs)
         self.machines = machines
         self.window = pyglet.window.Window()
         self.pct_util = []
         self.tick = 0
-        self.max_cpus = -10
-        self.max_mem = -10
-        self.max_gpus = -10
-        self.get_max_resources_avail(self.machines)
         self.batch = pyglet.graphics.Batch()
+
+    def inspect_jobs(self, jobs):
+        req_cpu_list = []
+        req_mem_list = []
+        for i in range(len(jobs.queue)):
+            job = jobs.queue[i][1]
+            req_cpu_list.append(job.req_cpus)
+            req_mem_list.append(job.req_mem)
+
+        self.REQ_MEM_TERCILE_1 = np.quantile(req_mem_list,.33)
+        self.REQ_MEM_TERCILE_2 = np.quantile(req_mem_list,.66)
+        self.REQ_CPU_TERCILE_1 = np.quantile(req_cpu_list,.33)
+        self.REQ_CPU_TERCILE_2 = np.quantile(req_cpu_list,.66)
 
     def run_visualizer(self, job_queue):
 
@@ -47,7 +62,7 @@ class Algorithm_Visualization():
         
         graphs = self.render_figure(fig)
         
-        # Don't delete, batch library has aggressive garbage collection.
+        # Don't remove returned vars, batch library has aggressive garbage collection.
         # Returning from a function causes shape objects to be deleted unless they're stored somewhere
         job_queue_shapes, job_queue_labels = self.draw_job_queue(job_queue)
 
@@ -132,89 +147,74 @@ class Algorithm_Visualization():
         job_labels = []
 
         # there's probably a better way to do colors
-        red    = (255,   0,   0)
-        yellow = (255, 255,   0)
-        green  = (0,   255,   0)
-        black  = (0,     0,   0)
+        black  = (  0,   0,   0)
         white  = (255, 255, 255)
 
         label_x_loc = X + self.QUEUE_X_SIZE/2
         title_label = pyglet.text.Label('Job Queue',
                                 font_name='Times New Roman',
                                 font_size=20,
-                                x=label_x_loc, y=Y,
-                                anchor_x='center', anchor_y='top', color=(0,0,0,255)) # label colors are RGBA, last value is opacity
+                                x=label_x_loc,
+                                y=Y,
+                                anchor_x='center',
+                                anchor_y='top',
+                                color=(0,0,0,255)) # label colors are RGBA, last value is opacity
+
         job_labels.append(title_label)
 
-        Y = Y - H # move the position down by one queue shape height worth
+        Y = Y - H # move the vertical position down by one queue-shape-height's worth
 
         title_border = shapes.Rectangle(X, Y, W, H, color=white, batch=self.batch)
         title_fill = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
 
         job_shapes.append((title_border,title_fill))
 
-        Y = Y - H
-
         for job in job_queue:
-            color = self.estimate_global_job_load(job)
+            Y = Y - H
+            color = self.categorize_job_load(job)
 
             border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
             shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=color, batch=self.batch)
 
-            label = pyglet.text.Label(job.job_name,
+            gpu_tag = ""
+            make_bold = False
+            if job.req_gpus > 0:
+                gpu_tag = "-gpu"
+                make_bold = True
+
+            label = pyglet.text.Label(job.job_name + gpu_tag,
                                     font_name='Times New Roman',
                                     font_size=12,
-                                    x=label_x_loc, y=Y+H/2,
-                                    anchor_x='center', anchor_y='center', color=(0,0,0,255))
-
-            Y = Y - H
+                                    bold=make_bold,
+                                    x=label_x_loc,
+                                    y=Y+H/2,
+                                    anchor_x='center',
+                                    anchor_y='center',
+                                    color=(0,0,0,255)) # label colors are RGBA, last value is opacity
 
             job_shapes.append((shape,border))
             job_labels.append(label)
 
         return job_shapes, job_labels
-
-    def get_max_resources_avail(self, machines):
-        for m in machines:
-            if m.total_mem > self.max_mem:
-                self.max_mem = m.total_mem
-            if m.total_cpus > self.max_cpus:
-                self.max_cpus = m.total_cpus
-            if m.total_gpus > self.max_gpus:
-                self.max_gpus = m.total_gpus
     
-    def estimate_global_job_load(self, job):
-        # These numbers come from inspecting the full data set
-        # percentile calcs
-        mem_req_33 = 4000000
-        mem_req_66 = 15000000
-        cpu_req_33 = 1
-        cpu_req_66 = 3
-
-        # These numbers come from inspecting the test data set
-        # percentile calcs
-        mem_req_33 = 4000000
-        mem_req_66 = 10000000
-        cpu_req_33 = 1
-        cpu_req_66 = 1
-
+    def categorize_job_load(self, job):
         # there's probably a better way to do colors
         red    = (255,   0,   0)
         yellow = (255, 255,   0)
-        green  = (0,   255,   0)
+        green  = (  0, 255,   0)
 
         count = 0
 
-        if job.req_cpus > cpu_req_33 and job.req_cpus <= cpu_req_66:
+        if job.req_cpus >= self.REQ_CPU_TERCILE_1 and job.req_cpus < self.REQ_CPU_TERCILE_2:
             count = count + 1
 
-        if job.req_mem > mem_req_33 and job.req_mem <= mem_req_66:
+        if job.req_mem >= self.REQ_MEM_TERCILE_1 and job.req_mem < self.REQ_MEM_TERCILE_2:
             count = count + 1
 
-        if job.req_cpus > cpu_req_66:
+        if job.req_cpus >= self.REQ_CPU_TERCILE_2:
             count = count + 1
 
-        if job.req_mem > mem_req_66:
+        if job.req_mem >= self.REQ_MEM_TERCILE_2:
             count = count + 1
         
         if count <= 1:
@@ -235,7 +235,7 @@ if (__name__ == '__main__'):
     machines = s.cluster.machines
     jobs = s.future_jobs
 
-    viz = Algorithm_Visualization(machines)
+    viz = Algorithm_Visualization(jobs, machines)
 
     job = jobs.get(0)
     s.cluster.machines[0].start_job(job[1])
@@ -253,9 +253,9 @@ if (__name__ == '__main__'):
     #s.cluster.machines[6].start_job(job[1])
     job = jobs.get(0)
     s.cluster.machines[7].start_job(job[1])
-    for i in range(90):
+    for i in range(100):
         job = jobs.get(0)[1]
-        if i > 60:
+        if i > 70:
             s.job_queue.append(job)
 
     viz.run_visualizer(s.job_queue)

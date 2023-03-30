@@ -14,6 +14,14 @@ class Machine():
         self.total_gpus = total_gpus
         self.avail_gpus = total_gpus
         self.running_jobs = []
+        
+        self.mem_util_pct = 0
+        self.cpus_util_pct = 0
+        self.gpus_util_pct = 0 if self.total_gpus > 0 else 100
+
+        if total_gpus > 0: self.node_type = "GPU"
+        elif total_mem > 5e8: self.node_type = "MEM"
+        else: self.node_type = "CPU"
 
         self.tick_times = []
         self.avail_mem_at_times = []

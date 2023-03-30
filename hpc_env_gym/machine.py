@@ -8,6 +8,7 @@ class Machine():
                        total_cpus:int, # in number of cores this node has
                        total_gpus:int) -> None: # in number of gpus this node has
         self.node_name = node_name
+        self.node_type = ""
         self.total_mem = total_mem
         self.avail_mem = total_mem
         self.total_cpus = total_cpus
@@ -19,6 +20,10 @@ class Machine():
         self.mem_util_pct = 0
         self.cpus_util_pct = 0
         self.gpus_util_pct = 0 if self.total_gpus > 0 else 100
+
+        if total_gpus > 0: self.node_type = "GPU"
+        elif total_mem > 5e8: self.node_type = "MEM"
+        else: self.node_type = "CPU"
 
         self.tick_times = []
         self.avail_mem_at_times = []
