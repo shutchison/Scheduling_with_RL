@@ -1,5 +1,4 @@
 import pyglet
-from pyglet import shapes
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -61,7 +60,7 @@ class Algorithm_Visualization():
         
         graphs = self.render_figure(fig)
         
-        # Don't remove returned vars, batch library has aggressive garbage collection.
+        # Don't remove these returned vars, batch library has aggressive garbage collection.
         # Returning from a function causes shape objects to be deleted unless they're stored somewhere
         job_queue_shapes, job_queue_labels = self.draw_job_queue(job_queue, jobs_left)
 
@@ -144,8 +143,8 @@ class Algorithm_Visualization():
         X = self.PLOT_X_SIZE        # shape x position
         Y = self.PLOT_Y_SIZE        # shape y position
 
-        job_shapes = []
-        job_labels = []
+        shapes = []
+        labels = []
 
         # there's probably a better way to do colors
         black  = (  0,   0,   0)
@@ -166,18 +165,18 @@ class Algorithm_Visualization():
                                 anchor_y='top',
                                 color=(0,0,0,255)) # label colors are RGBA, last value is opacity
 
-        job_labels.append(title_label)
+        labels.append(title_label)
         
         # Moves the vertical position down by one queue-shape-height's worth.
         # Labels get positioned by top edge position and shapes by bottom, so
         # increment the Y position appropriately
         Y = Y - H 
 
-        # create simple rectangle and store it in a list for future rendering
-        title_border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
-        title_fill = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
+        # creates simple nested rectangles stored in a list for future rendering
+        title_border = pyglet.shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
+        title_fill = pyglet.shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
 
-        job_shapes.append((title_border,title_fill))
+        shapes.append((title_border,title_fill))
 
         # ========================================================
         # Loop through the queue to create representative shapes
@@ -187,8 +186,8 @@ class Algorithm_Visualization():
             Y = Y - H
             color = self.categorize_job_load(job)
 
-            border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
-            shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=color, batch=self.batch)
+            border = pyglet.shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
+            shape = pyglet.shapes.Rectangle(X+1, Y-1, W-2, H-2, color=color, batch=self.batch)
 
             gpu_tag = ""
             make_bold = False
@@ -206,17 +205,16 @@ class Algorithm_Visualization():
                                     anchor_y='center',
                                     color=(0,0,0,255)) # label colors are RGBA, last value is opacity
 
-            job_shapes.append((shape,border))
-            job_labels.append(label)
+            shapes.append((shape,border))
+            labels.append(label)
 
             job_ctr = job_ctr + 1
 
-            # If there are too many items in the queue to display, use the last spot
-            # to make a note of that
+            # If there are too many items in the queue to display, use the last spot to make a note of that
             if job_ctr > self.MAX_NUM_IN_QUEUE-1: # -1 because we take up a valid spot to make this note
                 Y = Y - H
-                border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
-                shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=(255,255,0), batch=self.batch) # yellow color
+                border = pyglet.shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
+                shape = pyglet.shapes.Rectangle(X+1, Y-1, W-2, H-2, color=(255,127,0), batch=self.batch) # orange color
 
                 label = pyglet.text.Label("+{} more".format(len(job_queue)-(self.MAX_NUM_IN_QUEUE-1)),
                                         font_name='Times New Roman',
@@ -227,15 +225,15 @@ class Algorithm_Visualization():
                                         anchor_y='center',
                                         color=(0,0,0,255)) # label colors are RGBA, last value is opacity
 
-                job_shapes.append((shape,border))
-                job_labels.append(label)
+                shapes.append((shape,border))
+                labels.append(label)
                 break
 
         # ========================================================
         #       Adds an indicator for # future jobs remaining
         # ========================================================
         Y = 0
-        future_label = pyglet.text.Label("Future Jobs: {}".format(jobs_left),
+        future_label = pyglet.text.Label("# Future Jobs: {}".format(jobs_left),
                                 font_name='Times New Roman',
                                 font_size=12,
                                 x=label_x_loc,
@@ -244,13 +242,13 @@ class Algorithm_Visualization():
                                 anchor_y='center',
                                 color=(0,0,0,255)) # label colors are RGBA, last value is opacity
         
-        future_border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
-        future_fill = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
+        future_border = pyglet.shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
+        future_fill = pyglet.shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
 
-        job_shapes.append((future_fill,future_border))
-        job_labels.append(future_label)
+        shapes.append((future_fill,future_border))
+        labels.append(future_label)
 
-        return job_shapes, job_labels
+        return shapes, labels
     
     def categorize_job_load(self, job):
         # there's probably a better way to do colors
@@ -284,7 +282,7 @@ class Algorithm_Visualization():
 
 if (__name__ == '__main__'):
     s = Scheduler()
-    s.load_cluster("machines.csv")
+    s.load_cluster("more_machines.csv")
     s.load_jobs("jobs.csv")
 
     machines = s.cluster.machines
