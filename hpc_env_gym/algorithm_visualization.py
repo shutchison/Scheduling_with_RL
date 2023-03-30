@@ -15,6 +15,7 @@ class Algorithm_Visualization():
     PLOT_Y_SIZE = 980
     PLOT_Y_MARGIN = 20
     QUEUE_X_SIZE = 200
+    QUEUE_ITEM_HEIGHT = int(PLOT_Y_SIZE/30)
     WINDOW_X_SIZE = PLOT_X_SIZE + QUEUE_X_SIZE - 20 # not sure where this extra 20px is coming from
     WINDOW_Y_SIZE = PLOT_Y_SIZE + PLOT_Y_MARGIN
     TITLE_BAR_SIZE = 60
@@ -46,16 +47,17 @@ class Algorithm_Visualization():
         
         graphs = self.render_figure(fig)
         
-        # don't delete, batch library has aggressive garbage collection
-        # returning from a function causes shapes objects to be deleted they're unless stored somewhere
-        job_queue_graphic = self.draw_job_queue(job_queue)
+        # Don't delete, batch library has aggressive garbage collection.
+        # Returning from a function causes shape objects to be deleted unless they're stored somewhere
+        job_queue_shapes, job_queue_labels = self.draw_job_queue(job_queue)
 
         @self.window.event
         def on_draw():
             self.window.clear()
             graphs.blit(0, 0)
             self.batch.draw()
-            job_queue_graphic[0].draw()
+            for label in job_queue_labels:
+                label.draw()
 
         pyglet.app.run()
 
@@ -120,35 +122,36 @@ class Algorithm_Visualization():
             plot_num = plot_num + 1
 
     def draw_job_queue(self, job_queue):
-        # X, Y, W, H
 
         W = self.QUEUE_X_SIZE
-        H = 30
+        H = self.QUEUE_ITEM_HEIGHT
         X = self.PLOT_X_SIZE
         Y = self.PLOT_Y_SIZE
 
         job_shapes = []
+        job_labels = []
 
-        red = (255, 0, 0)
-        yellow = (255, 255, 0)
-        green = (0, 255, 0)
-        black = (0, 0, 0)
-        white = (255, 255, 255)
+        # there's probably a better way to do this
+        red    = (255,   0,   0)
+        yellow = (255, 255,   0)
+        green  = (0,   255,   0)
+        black  = (0,     0,   0)
+        white  = (255, 255, 255)
 
-        label = pyglet.text.Label('Job Queue',
-                          font_name='Times New Roman',
-                          font_size=20,
-                          x=X + self.QUEUE_X_SIZE/2, y=Y,
-                          anchor_x='center', anchor_y='top', color=(0,0,0,255))
+        label_x_loc = X + self.QUEUE_X_SIZE/2
+        title_label = pyglet.text.Label('Job Queue',
+                                font_name='Times New Roman',
+                                font_size=20,
+                                x=label_x_loc, y=Y,
+                                anchor_x='center', anchor_y='top', color=(0,0,0,255))
+        job_labels.append(title_label)
 
-        job_shapes.append(label)
+        Y = Y - H # move the position down by one queue shape's worth
 
-        Y = Y - H
+        title_border = shapes.Rectangle(X, Y, W, H, color=white, batch=self.batch)
+        title_fill = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
 
-        border = shapes.Rectangle(X, Y, W, H, color=white, batch=self.batch)
-        shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=white, batch=self.batch)
-
-        job_shapes.append((shape,border))
+        job_shapes.append((title_border,title_fill))
 
         Y = Y - H
 
@@ -165,11 +168,18 @@ class Algorithm_Visualization():
             border = shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
             shape = shapes.Rectangle(X+1, Y-1, W-2, H-2, color=color, batch=self.batch)
 
+            label = pyglet.text.Label(job.job_name,
+                                    font_name='Times New Roman',
+                                    font_size=12,
+                                    x=label_x_loc, y=Y+H/2,
+                                    anchor_x='center', anchor_y='center', color=(0,0,0,255))
+
             Y = Y - H
 
             job_shapes.append((shape,border))
+            job_labels.append(label)
 
-        return job_shapes
+        return job_shapes, job_labels
 
     def get_max_resources_avail(self, machines):
         for m in machines:
@@ -219,20 +229,3 @@ if (__name__ == '__main__'):
         print("Job {} System Load: {}%".format(job.job_name,viz.estimate_global_job_load(job)))
 
     viz.run_visualizer(s.job_queue)
-    
-    '''
-    job = jobs.get(0)
-    s.cluster.machines[2].start_job(job[1])
-    viz = Algorithm_Visualization(machines)
-    viz.run_visualizer()
-
-    job = jobs.get(0)
-    s.cluster.machines[2].start_job(job[1])
-    viz = Algorithm_Visualization(machines)
-    viz.run_visualizer()
-
-    job = jobs.get(0)
-    s.cluster.machines[3].start_job(job[1])
-    viz = Algorithm_Visualization(machines)
-    viz.run_visualizer()
-    '''
