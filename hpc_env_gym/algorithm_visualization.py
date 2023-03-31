@@ -11,7 +11,7 @@ class Algorithm_Visualization():
     # Going to make these manually set instead of auto-scaled to screen for ease of programming
     # All numbers in pixels except where noted
     PLOT_X_SIZE = 750
-    PLOT_Y_SIZE = 980
+    PLOT_Y_SIZE = 680
     PLOT_Y_MARGIN = 20
     QUEUE_X_SIZE = 200
     MAX_NUM_IN_QUEUE = 30
@@ -152,6 +152,10 @@ class Algorithm_Visualization():
 
         # labels get positioned differently than shapes
         label_x_loc = X + self.QUEUE_X_SIZE/2
+        
+        # Check for more jobs than can be displayed
+        overflow = True if len(job_queue) > self.MAX_NUM_IN_QUEUE else False
+        print("# in viz job queue: {}".format(len(job_queue)))
 
         # =======================================================
         #              Creates the top title block
@@ -209,9 +213,9 @@ class Algorithm_Visualization():
             labels.append(label)
 
             job_ctr = job_ctr + 1
-
+            
             # If there are too many items in the queue to display, use the last spot to make a note of that
-            if job_ctr > self.MAX_NUM_IN_QUEUE-1: # -1 because we take up a valid spot to make this note
+            if overflow and job_ctr > self.MAX_NUM_IN_QUEUE-1: # -1 because we take up a valid spot to make this note
                 Y = Y - H
                 border = pyglet.shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
                 shape = pyglet.shapes.Rectangle(X+1, Y-1, W-2, H-2, color=(255,127,0), batch=self.batch) # orange color
@@ -306,7 +310,7 @@ if (__name__ == '__main__'):
     #s.cluster.machines[6].start_job(job[1])
     job = jobs.get(0)
     s.cluster.machines[7].start_job(job[1])
-    for i in range(102):
+    for i in range(100):
         job = jobs.get(0)[1]
         if i >= 70:
             s.job_queue.append(job)
