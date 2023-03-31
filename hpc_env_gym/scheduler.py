@@ -30,6 +30,9 @@ class Scheduler():
     
     def load_cluster(self, csv_file_name):
         self.cluster.load_machines(csv_file_name)
+
+    def bbf(self, job):
+        return self.cluster.best_bin_first(job, self.global_clock)
     
     def load_jobs(self, csv_file_name):
         f = open(csv_file_name)

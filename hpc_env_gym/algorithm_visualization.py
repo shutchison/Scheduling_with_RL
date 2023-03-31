@@ -10,16 +10,18 @@ INCHES_PER_PIXEL = 1/plt.rcParams['figure.dpi']
 class Algorithm_Visualization():
     # Going to make these manually set instead of auto-scaled to screen for ease of programming
     # All numbers in pixels except where noted
-    PLOT_X_SIZE = 750
-    PLOT_Y_SIZE = 680
-    PLOT_Y_MARGIN = 20
-    QUEUE_X_SIZE = 200
-    MAX_NUM_IN_QUEUE = 30
-    QUEUE_ITEM_HEIGHT = (PLOT_Y_SIZE)/(MAX_NUM_IN_QUEUE + 2) # add 2 for a title item and future jobs left item
-    WINDOW_X_SIZE = PLOT_X_SIZE + QUEUE_X_SIZE - 20 # not sure where this extra 20px is coming from
-    WINDOW_Y_SIZE = PLOT_Y_SIZE + PLOT_Y_MARGIN
-    TITLE_BAR_SIZE = 60
+    PLOT_WIDTH = 750
+    PLOT_HEIGHT = 980
+    PLOT_HEIGHT_MARGIN = 20
+    QUEUE_WIDTH = 200
+    MAX_ITEMS_IN_QUEUE = 30
 
+    QUEUE_ITEM_HEIGHT = (PLOT_HEIGHT)/(MAX_ITEMS_IN_QUEUE + 2) # add 2 for a title item and future jobs item
+    WINDOW_WIDTH = PLOT_WIDTH + QUEUE_WIDTH - 20 # not sure where this extra 20px is coming from
+    WINDOW_HEIGHT = PLOT_HEIGHT + PLOT_HEIGHT_MARGIN
+    TITLE_BAR_MARGIN = 60
+
+    # For assigning jobs a Red/Yellow/Green distinction based on amount of requested resources
     REQ_MEM_TERCILE_1 = 0
     REQ_MEM_TERCILE_2 = 0
     REQ_CPU_TERCILE_1 = 0
@@ -31,8 +33,8 @@ class Algorithm_Visualization():
         self.inspect_jobs(all_jobs)
         self.machines = machines
         self.window = pyglet.window.Window()
-        self.pct_util = []
-        self.tick = 0
+        self.pct_utils = {'cpu_avg_hist': [], 'gpu_avg_hist': [], 'mem_avg_hist': [], 'all_avg_hist': []}
+        self.tick = []
         self.batch = pyglet.graphics.Batch()
 
     def inspect_jobs(self, jobs):
@@ -47,12 +49,12 @@ class Algorithm_Visualization():
         self.REQ_CPU_TERCILE_1 = np.quantile(req_cpu_list,.33)
         self.REQ_CPU_TERCILE_2 = np.quantile(req_cpu_list,.66)
 
-    def run_visualizer(self, job_queue, jobs_left):
+    def run_visualizer(self, job_queue, jobs_left, global_clock):
         self.set_window_size_loc()
         fig = self.create_figure()
 
         if len(self.machines) > self.MAX_MACHINES:
-            data = self.package_machine_data_for_avg_plots()
+            self.package_machine_data_for_avg_plots(global_clock)
             self.draw_avg_plots(fig)
         else:
             data = self.package_machine_data_for_bar_plots()
@@ -79,13 +81,15 @@ class Algorithm_Visualization():
         display = pyglet.canvas.Display()
         screen = display.get_default_screen()
 
-        x_size = min(int(self.WINDOW_X_SIZE), screen.width)
-        y_size = min(int(self.WINDOW_Y_SIZE), screen.height) - self.TITLE_BAR_SIZE
+        width = min(int(self.WINDOW_WIDTH), screen.width)
+        height = min(int(self.WINDOW_HEIGHT), screen.height) - self.TITLE_BAR_MARGIN
 
-        x_loc = int((screen.width - x_size) / 2)
-        y_loc = int((screen.height - y_size) / 2)
+        # TODO: Figure out window contents auto scaling. Window scaling works fine
 
-        self.window.set_size(x_size, y_size)
+        x_loc = int((screen.width - width) / 2)
+        y_loc = int((screen.height - height) / 2)
+
+        self.window.set_size(width, height)
         self.window.set_location(x_loc, y_loc)
 
     def create_figure(self):
@@ -97,21 +101,57 @@ class Algorithm_Visualization():
         data, (w, h) = canvas.print_to_buffer()
         return pyglet.image.ImageData(w, h, "RGBA", data, -4 * w)
 
-    def package_machine_data_for_avg_plots(self):
+    def package_machine_data_for_avg_plots(self, global_clock):
         n_machines = len(machines)
-        util_sum = 0
+        n_cpu = 0
+        n_gpu = 0
+        n_mem = 0
+        all_sum = 0
+        cpu_sum = 0
+        mem_sum = 0
+        gpu_sum = 0
         for m in self.machines:
-            util_sum = util_sum + (m.mem_util_pct + m.cpus_util_pct + m.gpus_util_pct)/3
-        avg_utilization = util_sum/n_machines
-        self.pct_util.append(avg_utilization)
-        self.tick = self.tick + 1
+            all_sum = all_sum + (m.mem_util_pct + m.cpus_util_pct + m.gpus_util_pct)/3
+
+            if m.node_type == "CPU":
+                n_cpu = n_cpu + 1
+                cpu_sum = cpu_sum + (m.mem_util_pct + m.cpus_util_pct)/3
+
+            elif m.node_type == "GPU":
+                n_gpu = n_gpu + 1
+                gpu_sum = gpu_sum + (m.mem_util_pct + m.cpus_util_pct + m.gpus_util_pct)/3
+
+            elif m.node_type == "MEM":
+                n_mem = n_mem + 1
+                mem_sum = mem_sum + (m.mem_util_pct + m.cpus_util_pct)/3
+
+        avg_utilization_all = all_sum/n_machines
+        avg_utilization_cpu = cpu_sum/n_machines
+        avg_utilization_gpu = gpu_sum/n_machines
+        avg_utilization_mem = mem_sum/n_machines
+
+        self.pct_utils['cpu_avg_hist'].append(avg_utilization_cpu)
+        self.pct_utils['gpu_avg_hist'].append(avg_utilization_gpu)
+        self.pct_utils['mem_avg_hist'].append(avg_utilization_mem)
+        self.pct_utils['all_avg_hist'].append(avg_utilization_all)
+
+        self.tick.append(global_clock)
 
     def draw_avg_plots(self, fig):
         ax = fig.add_subplot(111)
-        fig.set_size_inches(self.PLOT_X_SIZE*INCHES_PER_PIXEL, self.PLOT_Y_SIZE*INCHES_PER_PIXEL)
+        fig.set_size_inches(self.PLOT_WIDTH*INCHES_PER_PIXEL, self.PLOT_HEIGHT*INCHES_PER_PIXEL)
         fig.tight_layout()
-        ax.plot(self.pct_util)
-        ax.set(ylabel='%', title="Average Node % Utilization")
+        fig.subplots_adjust(top=0.96, left=0.08, bottom=0.08)
+
+        ax.plot(self.tick, self.pct_utils['cpu_avg_hist'],
+                self.tick, self.pct_utils['mem_avg_hist'],
+                self.tick, self.pct_utils['gpu_avg_hist'],
+                self.tick, self.pct_utils['all_avg_hist'])
+
+        ax.set_ylim([0, 100])
+        ax.yaxis.set_ticks(np.arange(0, 110, 10))
+        ax.set(xlabel="Global Clock", ylabel='% Utilization', title="Average Node Utilization")
+        ax.legend(['CPU Nodes', 'MEM Nodes', 'GPU Nodes', 'All Nodes'],loc='lower right')
 
     def package_machine_data_for_bar_plots(self):
         m_data = []
@@ -125,7 +165,7 @@ class Algorithm_Visualization():
             machine_name = data_sets[i][0]
             machine_data = data_sets[i][1]
             ax = fig.add_subplot(4,3,plot_num)
-            fig.set_size_inches(self.PLOT_X_SIZE*INCHES_PER_PIXEL, self.PLOT_Y_SIZE*INCHES_PER_PIXEL)
+            fig.set_size_inches(self.PLOT_WIDTH*INCHES_PER_PIXEL, self.PLOT_HEIGHT*INCHES_PER_PIXEL)
             fig.tight_layout()
             labels=["CPUs","Mem","GPUs"]
             b = ax.bar(labels, machine_data)
@@ -138,10 +178,10 @@ class Algorithm_Visualization():
         # =======================================================
         #    Sets some starter values for queue representation
         # =======================================================
-        W = self.QUEUE_X_SIZE       # shape width
+        W = self.QUEUE_WIDTH       # shape width
         H = self.QUEUE_ITEM_HEIGHT  # shape height
-        X = self.PLOT_X_SIZE        # shape x position
-        Y = self.PLOT_Y_SIZE        # shape y position
+        X = self.PLOT_WIDTH        # shape x position
+        Y = self.PLOT_HEIGHT        # shape y position
 
         shapes = []
         labels = []
@@ -151,11 +191,10 @@ class Algorithm_Visualization():
         white  = (255, 255, 255)
 
         # labels get positioned differently than shapes
-        label_x_loc = X + self.QUEUE_X_SIZE/2
+        label_x_loc = X + self.QUEUE_WIDTH/2
         
         # Check for more jobs than can be displayed
-        overflow = True if len(job_queue) > self.MAX_NUM_IN_QUEUE else False
-        print("# in viz job queue: {}".format(len(job_queue)))
+        overflow = True if len(job_queue) > self.MAX_ITEMS_IN_QUEUE else False
 
         # =======================================================
         #              Creates the top title block
@@ -215,12 +254,12 @@ class Algorithm_Visualization():
             job_ctr = job_ctr + 1
             
             # If there are too many items in the queue to display, use the last spot to make a note of that
-            if overflow and job_ctr > self.MAX_NUM_IN_QUEUE-1: # -1 because we take up a valid spot to make this note
+            if overflow and job_ctr > self.MAX_ITEMS_IN_QUEUE-1: # -1 because we take up a valid spot to make this note
                 Y = Y - H
                 border = pyglet.shapes.Rectangle(X, Y, W, H, color=black, batch=self.batch)
                 shape = pyglet.shapes.Rectangle(X+1, Y-1, W-2, H-2, color=(255,127,0), batch=self.batch) # orange color
 
-                label = pyglet.text.Label("+{} more".format(len(job_queue)-(self.MAX_NUM_IN_QUEUE-1)),
+                label = pyglet.text.Label("+{} more".format(len(job_queue)-(self.MAX_ITEMS_IN_QUEUE-1)),
                                         font_name='Times New Roman',
                                         font_size=12,
                                         x=label_x_loc,
@@ -231,6 +270,7 @@ class Algorithm_Visualization():
 
                 shapes.append((shape,border))
                 labels.append(label)
+
                 break
 
         # ========================================================
@@ -286,7 +326,7 @@ class Algorithm_Visualization():
 
 if (__name__ == '__main__'):
     s = Scheduler()
-    s.load_cluster("more_machines.csv")
+    s.load_cluster("machines.csv")
     s.load_jobs("jobs.csv")
 
     machines = s.cluster.machines
@@ -294,25 +334,11 @@ if (__name__ == '__main__'):
 
     viz = Algorithm_Visualization(jobs, machines)
 
-    job = jobs.get(0)
-    s.cluster.machines[0].start_job(job[1])
-    job = jobs.get(0)
-    s.cluster.machines[1].start_job(job[1])
-    job = jobs.get(0)
-    s.cluster.machines[2].start_job(job[1])
-    job = jobs.get(0)
-    s.cluster.machines[3].start_job(job[1])
-    job = jobs.get(0)
-    s.cluster.machines[4].start_job(job[1])
-    job = jobs.get(0)
-    s.cluster.machines[5].start_job(job[1])
-    job = jobs.get(0)
-    #s.cluster.machines[6].start_job(job[1])
-    job = jobs.get(0)
-    s.cluster.machines[7].start_job(job[1])
-    for i in range(100):
-        job = jobs.get(0)[1]
-        if i >= 70:
-            s.job_queue.append(job)
+    stop = 250
+    for i in range(stop):
+        job = jobs.get(0)
+        assigned, node = s.bbf(job[1])
+        if not assigned: s.job_queue.append(job[1])
+        viz.package_machine_data_for_avg_plots(i)
 
-    viz.run_visualizer(s.job_queue,"Not Given")
+    viz.run_visualizer(s.job_queue,"Not Given", stop+1)
