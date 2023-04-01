@@ -22,18 +22,14 @@ TITLE_BAR_MARGIN = 60
 
 MAX_MACHINES = 12
 
-SUPPORTED_MODES = {
-    'human': lambda: HPCEnvHumanRenderer
-}
-
-class HPCEnvHumanRenderer(pyglet.window.Window):
+class Algorithm_Visualization():
     # For assigning jobs a Red/Yellow/Green distinction based on amount of requested resources
     REQ_MEM_TERCILE_1 = 0
     REQ_MEM_TERCILE_2 = 0
     REQ_CPU_TERCILE_1 = 0
     REQ_CPU_TERCILE_2 = 0
-
-    def __init__(self, all_jobs, machines):
+    
+    def __init__(self, all_jobs, machines) -> None:
         self.inspect_jobs(all_jobs)
         self.machines = machines
         self.window = pyglet.window.Window()
@@ -41,9 +37,6 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         self.pct_utils = {'cpu_avg_hist': [], 'gpu_avg_hist': [], 'mem_avg_hist': [], 'all_avg_hist': []}
         self.tick = []
         self.batch = pyglet.graphics.Batch()
-        self.graphs = None
-        self.job_queue_shapes = []
-        self.job_queue_labels = []
 
     def inspect_jobs(self, jobs):
         req_cpu_list = []
@@ -57,8 +50,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         self.REQ_CPU_TERCILE_1 = np.quantile(req_cpu_list,.33)
         self.REQ_CPU_TERCILE_2 = np.quantile(req_cpu_list,.66)
 
-    # Does this or another function need to be @staticmethod?
-    def pre_render(self, job_queue, num_future_jobs, global_clock, use_avg=True):
+    def run_visualizer(self, job_queue, num_future_jobs, global_clock, use_avg=False):
         self.set_window_size_loc()
         fig = self.create_figure()
 
@@ -69,21 +61,21 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
             data = self.package_machine_data_for_bar_plots()
             self.draw_bar_plots(fig, data)
         
-        self.graphs = self.render_figure(fig)
+        graphs = self.render_figure(fig)
         
         # Don't remove these returned vars, batch library has aggressive garbage collection.
         # Returning from a function causes shape objects to be deleted unless they're stored somewhere
-        self.job_queue_shapes, self.job_queue_labels = self.draw_job_queue(job_queue, num_future_jobs)
+        job_queue_shapes, job_queue_labels = self.draw_job_queue(job_queue, num_future_jobs)
 
-        canvas = FigureCanvasAgg(fig)
-        canvas.draw()
-        renderer = canvas.get_renderer()
-        raw_data = renderer.tostring_rgb()
-        size = canvas.get_width_height()
+        @self.window.event
+        def on_draw():
+            self.window.clear()
+            graphs.blit(0, 0)
+            self.batch.draw()
+            for label in job_queue_labels:
+                label.draw()
 
-        return np.frombuffer(raw_data, dtype=np.uint8).reshape(
-            (size[0], size[1], 3)
-        )
+        pyglet.app.run()
 
     def set_window_size_loc(self):
         display = pyglet.canvas.Display()
@@ -333,33 +325,22 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
 
         return color
 
-    def on_draw(self):
-        self.window.clear()
-        self.graphs.blit(0, 0)
-        self.batch.draw()
-        for label in self.job_queue_labels:
-            label.draw()
 
-    def render(self, state):
-        job_queue = state[0]
-        num_future_jobs = state[1]
-        global_clock = state[2]
+if (__name__ == '__main__'):
+    s = Scheduler()
+    s.load_cluster("more_machines.csv")
+    s.load_jobs("jobs.csv")
 
-        self.rendering = self.pre_render(job_queue, num_future_jobs, global_clock)
+    machines = s.cluster.machines
+    jobs = s.future_jobs
 
-        pyglet.clock.tick()
-        self.window.switch_to()
-        self.window.dispatch_events()
-        self.window.dispatch_event('on_draw')
-        self.window.flip()
+    viz = Algorithm_Visualization(jobs, machines)
 
-        return self.rendering
+    stop = 250
+    for i in range(stop):
+        job = jobs.get(0)
+        assigned, node = s.bbf(job[1])
+        if not assigned: s.job_queue.append(job[1])
+        viz.package_machine_data_for_avg_plots(i)
 
-class HPCEnvRenderer(object):
-    def __init__(self, mode, *args, **kwargs):
-        if mode not in SUPPORTED_MODES:
-            raise RuntimeError('Requested unsupported mode %s' % mode)
-        self.renderer = SUPPORTED_MODES[mode]()(*args, **kwargs)
-
-    def render(self, state):
-        return self.renderer.render(state)
+    viz.run_visualizer(s.job_queue,"Not Given", stop+1, use_avg=False)
