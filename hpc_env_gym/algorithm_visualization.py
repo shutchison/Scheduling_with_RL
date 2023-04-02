@@ -33,12 +33,12 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
     REQ_CPU_TERCILE_1 = 0
     REQ_CPU_TERCILE_2 = 0
 
-    def __init__(self, all_jobs, machines):
+    def __init__(self, all_jobs, all_machines):
         self.inspect_jobs(all_jobs)
-        self.machines = machines
+        self.machines = all_machines
         self.window = pyglet.window.Window()
         self.window.set_caption('HPC State')
-        self.pct_utils = {'cpu_avg_hist': [], 'gpu_avg_hist': [], 'mem_avg_hist': [], 'all_avg_hist': []}
+        self.utilization_percents = {'cpu_avg_hist': [], 'gpu_avg_hist': [], 'mem_avg_hist': [], 'all_avg_hist': []}
         self.tick = []
         self.batch = pyglet.graphics.Batch()
         self.graphs = None
@@ -135,10 +135,10 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         avg_utilization_mem = mem_sum/n_mem
         avg_utilization_all = (cpu_sum + gpu_sum + mem_sum) / n_machines
 
-        self.pct_utils['cpu_avg_hist'].append(avg_utilization_cpu)
-        self.pct_utils['gpu_avg_hist'].append(avg_utilization_gpu)
-        self.pct_utils['mem_avg_hist'].append(avg_utilization_mem)
-        self.pct_utils['all_avg_hist'].append(avg_utilization_all)
+        self.utilization_percents['cpu_avg_hist'].append(avg_utilization_cpu)
+        self.utilization_percents['gpu_avg_hist'].append(avg_utilization_gpu)
+        self.utilization_percents['mem_avg_hist'].append(avg_utilization_mem)
+        self.utilization_percents['all_avg_hist'].append(avg_utilization_all)
 
         self.tick.append(global_clock)
 
@@ -148,10 +148,10 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         fig.tight_layout()
         fig.subplots_adjust(top=0.96, left=0.08, bottom=0.08)
 
-        ax.plot(self.tick, self.pct_utils['cpu_avg_hist'],
-                self.tick, self.pct_utils['mem_avg_hist'],
-                self.tick, self.pct_utils['gpu_avg_hist'],
-                self.tick, self.pct_utils['all_avg_hist'])
+        ax.plot(self.tick, self.utilization_percents['cpu_avg_hist'],
+                self.tick, self.utilization_percents['mem_avg_hist'],
+                self.tick, self.utilization_percents['gpu_avg_hist'],
+                self.tick, self.utilization_percents['all_avg_hist'])
 
         ax.set_ylim([0, 100])
         ax.yaxis.set_ticks(np.arange(0, 110, 10))
