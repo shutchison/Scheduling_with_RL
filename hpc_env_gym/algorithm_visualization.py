@@ -344,8 +344,9 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         job_queue = state[0]
         num_future_jobs = state[1]
         global_clock = state[2]
+        use_avg = state[3] if len(state) > 3 else True
 
-        self.rendering = self.pre_render(job_queue, num_future_jobs, global_clock)
+        self.rendering = self.pre_render(job_queue, num_future_jobs, global_clock, use_avg)
 
         pyglet.clock.tick()
         self.window.switch_to()

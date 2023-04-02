@@ -50,7 +50,7 @@ class Algorithm_Visualization():
         self.REQ_CPU_TERCILE_1 = np.quantile(req_cpu_list,.33)
         self.REQ_CPU_TERCILE_2 = np.quantile(req_cpu_list,.66)
 
-    def run_visualizer(self, job_queue, num_future_jobs, global_clock, use_avg=False):
+    def run_visualizer(self, job_queue, num_future_jobs, global_clock, use_avg=True):
         self.set_window_size_loc()
         fig = self.create_figure()
 
