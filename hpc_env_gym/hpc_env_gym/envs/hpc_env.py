@@ -18,7 +18,7 @@ NUM_MACHINES_IN_CLUSTER = 8 # how many machines are in the cluster?
 # https://www.gymlibrary.dev/api/core/
 
 class HPCEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1}
     
     def __init__(self, render_mode=None):
         self.render_mode = render_mode
@@ -172,7 +172,7 @@ class HPCEnv(gym.Env):
             arg_dict = {}
             arg_dict["all_jobs"] = self.scheduler.future_jobs
             arg_dict["all_machines"] = self.scheduler.cluster.machines
-            self.alg_vis = HPCEnvRenderer(self.render_mode, arg_dict)
+            self.renderer = HPCEnvRenderer(self.render_mode, arg_dict)
             
         obs = self._get_obs()
         #print("obs is of type {}:".format(type(obs)))
@@ -245,11 +245,15 @@ class HPCEnv(gym.Env):
         pass
     
     def render(self):
-        if self.render_mode=="human":
-            self.renderer = HPCEnvRenderer(self.render_mode)
+        if self.renderer == None:
+            arg_dict = {}
+            arg_dict["all_jobs"] = self.scheduler.future_jobs
+            arg_dict["all_machines"] = self.scheduler.cluster.machines
+            self.renderer = HPCEnvRenderer(self.render_mode, arg_dict)
             
-            state = [self.scheduler.job_queue, len(scheduler.future_jobs.queue), self.scheduler.global_clock, False]
-            
-            self.renderer.render(state)
+        state = [self.scheduler.job_queue, len(self.scheduler.future_jobs.queue), self.scheduler.global_clock, False]
+        rendered_thing = self.renderer.render(state)
+        
+        return rendered_thing
     
         
