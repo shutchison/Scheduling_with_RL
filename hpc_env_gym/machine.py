@@ -30,7 +30,13 @@ class Machine():
         self.avail_mem_at_times.append(self.avail_mem)
         self.avail_cpus_at_times.append(self.avail_cpus)
         self.avail_gpus_at_times.append(self.avail_gpus)
-
+    
+    def can_schedule(self, job):
+        if job.req_mem <= self.avail_mem and job.req_cpus <= self.avail_cpus and job.req_gpus <= self.avail_gpus:
+            return True
+        else:
+            return False
+    
     def start_job(self, job):
         self.running_jobs.append(job)
         self.avail_mem -= job.req_mem
@@ -61,9 +67,9 @@ class Machine():
 
             self.update_pct_util()
 
-            assert(self.avail_mem <= self.total_mem)
-            assert(self.avail_cpus <= self.total_cpus)
-            assert(self.avail_gpus <= self.total_gpus)
+            assert(self.avail_mem <= self.total_mem), "Machine {} stopped {}, and somehow has too much memory".format(self.node_name, job_to_remove)
+            assert(self.avail_cpus <= self.total_cpus), "Machine {} stopped {}, and somehow has too many cpus".format(self.node_name, job_to_remove)
+            assert(self.avail_gpus <= self.total_gpus), "Machine {} stopped {}, and somehow has too many GPUs".format(self.node_name, job_to_remove)
     
     def update_pct_util(self):
         

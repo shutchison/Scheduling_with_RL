@@ -62,6 +62,9 @@ class HPCEnv(gym.Env):
         
         self.action_space = spaces.Discrete(NUM_MACHINES_IN_CLUSTER)
     
+        self.job_assignments = []
+        self.window = None
+        
     def node_num_to_name(self):
         pass
         
@@ -69,6 +72,22 @@ class HPCEnv(gym.Env):
         pass
     
     def _get_obs(self):
+        #job = self.scheduler.get_shortest_schedulable_job()
+        #job_dict = {}
+        #if job is not None:
+        #    job_dict["job_name"] = job.job_name
+        #    job_dict["req_mem"] = job.req_mem
+        #    job_dict["req_cpus"] = job.req_cpus
+        #    job_dict["req_gpus"] =  job.req_gpus
+        #    job_dict["req_duration"] = job.req_duration
+        #else:
+        #    job_dict["job_name"] = "NoJob"
+        #    job_dict["req_mem"] = 0
+        #    job_dict["req_cpus"] = 0
+        #    job_dict["req_gpus"] =  0
+        #    job_dict["req_duration"] = 0
+        
+        
         job_list = []
         for job in self.scheduler.job_queue:
             d = {}
@@ -85,7 +104,7 @@ class HPCEnv(gym.Env):
         #job_queue_array = np.array(job_list)
         #print("Job queue array is:")
         #pprint(job_queue_array)
-        print("="*40)
+        #print("="*40)
         
         machine_list = []
         for machine in self.scheduler.cluster.machines:
@@ -155,9 +174,8 @@ class HPCEnv(gym.Env):
         #print("obs is of type {}:".format(type(obs)))
         #pprint(obs)
         info = {}
-        
-        
-        
+        self.job_assignments = []
+
         return obs, info
     
     def step(self, action):
@@ -183,70 +201,39 @@ class HPCEnv(gym.Env):
 
         done (bool) - A boolean value for if the episode has ended, in which case further step() calls will return undefined results. A done signal may be emitted for different reasons: Maybe the task underlying the environment was solved successfully, a certain timelimit was exceeded, or the physics simulation has entered an invalid state.
         """
-    
+        
         # The action is the index of the machine on which to start this job
-        
-        # loop through all the jobs in the job queue and select the shortest
-        job = self.scheduler.job_queue.pop(0)
-        print(job)
-        
-        # The reward is determined if this job is the "best bin first" machine
-        # in the event this job was scheduled on the "best bin", the reward will be 1, else 0.
-        min_fill_margin = 10
-        assigned_machine = None
-        assigned_machine_index = None
-        for machine_index, m in enumerate(self.scheduler.cluster.machines):
-            if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
-                print("checking {}".format(m.node_name))
-                # not all nodes have both GPUs and CPUs, so init each margin to 0
-                mem_margin = 0.0
-                cpu_margin = 0.0
-                gpu_margin = 0.0
+        print("Action: {}".format(action))
+        print("RL Agent attempting to schedule to {}".format(self.scheduler.cluster.machines[action].node_name))
 
-                # count how many attributes the node has to normalize the final margin
-                n_attributes = 0
-
-                if m.total_mem > 0:
-                    mem_margin = (m.avail_mem - job.req_mem)/m.total_mem
-                    n_attributes += 1
-
-                if m.total_cpus > 0:
-                    cpu_margin = (m.avail_cpus - job.req_cpus)/m.total_cpus
-                    n_attributes += 1
-
-                if m.total_gpus > 0:
-                    gpu_margin = (m.avail_gpus - job.req_gpus)/m.total_gpus
-                    n_attributes += 1
-
-                if n_attributes == 0:
-                    print("{} has no virtual resources configured (all <= 0).".format(m.node_name))
-                    fill_margin = 10
-                else:
-                    fill_margin = (mem_margin + cpu_margin + gpu_margin)/n_attributes
-                print("{} has fill margin {}".format(m.node_name, fill_margin))
-                if fill_margin < min_fill_margin:
-                    min_fill_margin = fill_margin
-                    assigned_machine = m
-                    assigned_machine_index = machine_index
-        print("bff would assign this to {}, index {}.  min_fill_margin={}".format(assigned_machine.node_name, assigned_machine_index, min_fill_margin))
-        
-        if assigned_machine is not None:
-            if action == assigned_machine_index:
-                reward = 1
-            else:
-                reward = 0
-        else:
-            print("Some problem with reward!!")
-            reward = -1
-            
-        # start the job on the machine specified by the array index "action" argument
-        self.scheduler.cluster.machines[action].start_job(job)
-
-        observation = self._get_obs()
-        terminated = False
+        terminated = self.scheduler.tick()
         truncated = False
+        reward = 0
+        
+        if not terminated:
+            proposed_machine_index = action
+            proposed_machine = self.scheduler.cluster.machines[proposed_machine_index]
+            
+            job = self.scheduler.get_shortest_schedulable_job()
+            print("Trying to schedule {} on {}".format(job, proposed_machine))
+            best_machine_index, best_machine = self.scheduler.get_best_bin_first_machine(job)
+            
+            if proposed_machine.can_schedule(job):
+                self.scheduler.run_job(job, proposed_machine_index)
+                if proposed_machine_index == best_machine_index:
+                    reward = 1
+                else:
+                    reward = 0
+            else:
+                print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
+                self.scheduler.job_queue.append(job)
+                reward = -1
+                
+        observation = self._get_obs()
+        
         info = {}
 
+        print(self.scheduler.summary_statistics())
         return observation, reward, terminated, truncated, info
         
     def close(self):
