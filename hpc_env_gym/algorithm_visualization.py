@@ -33,7 +33,11 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
     REQ_CPU_TERCILE_1 = 0
     REQ_CPU_TERCILE_2 = 0
 
-    def __init__(self, all_jobs, all_machines):
+    def __init__(self, *args, **kwargs):
+        # This is ugly.  Need to figure out how to get kwargs in here correctly.
+        all_jobs = args[0]["all_jobs"]
+        all_machines = args[0]["all_machines"]
+        
         self.inspect_jobs(all_jobs)
         self.machines = all_machines
         self.window = pyglet.window.Window()

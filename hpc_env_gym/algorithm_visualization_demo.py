@@ -10,7 +10,7 @@ INCHES_PER_PIXEL = 1/plt.rcParams['figure.dpi']
 # Going to make these manually set instead of auto-scaled to screen for ease of programming
 # All numbers in pixels except where noted
 PLOT_WIDTH = 750
-PLOT_HEIGHT = 980
+PLOT_HEIGHT = 580
 PLOT_HEIGHT_MARGIN = 20
 QUEUE_WIDTH = 200
 MAX_ITEMS_IN_QUEUE = 30

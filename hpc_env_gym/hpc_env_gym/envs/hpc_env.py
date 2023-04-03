@@ -6,7 +6,7 @@ from scheduler import Scheduler
 from job import Job
 from machine import Machine
 import numpy as np
-from algorithm_visualization import Algorithm_Visualization
+from algorithm_visualization import HPCEnvRenderer
 
 MAX_MEM = 1024000001 # largest amount of memory in any one node
 MAX_CPUs = 65 # largest number of CPUs in any one node
@@ -63,7 +63,7 @@ class HPCEnv(gym.Env):
         self.action_space = spaces.Discrete(NUM_MACHINES_IN_CLUSTER)
     
         self.job_assignments = []
-        self.window = None
+        self.renderer = None
         
     def node_num_to_name(self):
         pass
@@ -167,8 +167,12 @@ class HPCEnv(gym.Env):
             raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
             
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
+        
         if self.render_mode == "human":
-            self.alg_vis = Algorithm_Visualization(self.scheduler.cluster.machines)
+            arg_dict = {}
+            arg_dict["all_jobs"] = self.scheduler.future_jobs
+            arg_dict["all_machines"] = self.scheduler.cluster.machines
+            self.alg_vis = HPCEnvRenderer(self.render_mode, arg_dict)
             
         obs = self._get_obs()
         #print("obs is of type {}:".format(type(obs)))
@@ -242,6 +246,10 @@ class HPCEnv(gym.Env):
     
     def render(self):
         if self.render_mode=="human":
-            self.alg_vis.run_visualizer()
+            self.renderer = HPCEnvRenderer(self.render_mode)
+            
+            state = [self.scheduler.job_queue, len(scheduler.future_jobs.queue), self.scheduler.global_clock, False]
+            
+            self.renderer.render(state)
     
         
