@@ -20,7 +20,6 @@ for i in range(10000):
     num_in_queue = len(observation["job_queue"])
     pprint(("queue_depth = {}".format(num_in_queue), observation["machines"], reward, terminated, truncated, info))
     env.render()
-    sleep(5)
     
     
     if terminated:

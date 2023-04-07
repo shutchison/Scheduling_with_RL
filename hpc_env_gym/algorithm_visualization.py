@@ -22,6 +22,8 @@ TITLE_BAR_MARGIN = 60
 
 MAX_MACHINES = 12
 
+PRINT_DEBUG = False
+
 SUPPORTED_MODES = {
     'human': lambda: HPCEnvHumanRenderer
 }
@@ -42,6 +44,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         self.machines = all_machines
         self.window = pyglet.window.Window()
         self.window.set_caption('HPC State')
+        self.window.on_draw = self.on_draw
         self.utilization_percents = {'cpu_avg_hist': [], 'gpu_avg_hist': [], 'mem_avg_hist': [], 'all_avg_hist': []}
         self.tick = []
         self.batch = pyglet.graphics.Batch()
@@ -64,7 +67,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
     # Does this or another function need to be @staticmethod?
     def pre_render(self, job_queue, num_future_jobs, global_clock, use_avg=True):
         self.set_window_size_loc()
-        fig = self.create_figure()
+        fig = self.create_window()
 
         if use_avg:
             self.package_machine_data_for_avg_plots(global_clock)
@@ -73,23 +76,20 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
             data = self.package_machine_data_for_bar_plots()
             self.draw_bar_plots(fig, data)
         
-        self.graphs = self.render_figure(fig)
-        
+        self.graphs = self.render_plots(fig)
+
         # Don't remove these returned vars, batch library has aggressive garbage collection.
         # Returning from a function causes shape objects to be deleted unless they're stored somewhere
         self.job_queue_shapes, self.job_queue_labels = self.draw_job_queue(job_queue, num_future_jobs)
 
-        canvas = FigureCanvasAgg(fig)
-        canvas.draw()
-        renderer = canvas.get_renderer()
-        raw_data = renderer.tostring_rgb()
-        size = canvas.get_width_height()
+        size, raw_data = self.render_window(fig)
 
         return np.frombuffer(raw_data, dtype=np.uint8).reshape(
             (size[0], size[1], 3)
         )
 
     def set_window_size_loc(self):
+        if PRINT_DEBUG: print("Setting Pyglet window size...")
         display = pyglet.canvas.Display()
         screen = display.get_default_screen()
 
@@ -104,16 +104,22 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         self.window.set_size(width, height)
         self.window.set_location(x_loc, y_loc)
 
-    def create_figure(self):
+    def create_window(self):
+        if PRINT_DEBUG: print("Creating figure...")
         dpi_res = min(self.window.get_size()[0], self.window.get_size()[1]) / 10
         return Figure((self.window.get_size()[0] / dpi_res, self.window.get_size()[1] / dpi_res))
 
-    def render_figure(self, fig):
+    def render_window(self, fig):
+        if PRINT_DEBUG: print("Rendering figure...")
         canvas = FigureCanvasAgg(fig)
-        data, (w, h) = canvas.print_to_buffer()
-        return pyglet.image.ImageData(w, h, "RGBA", data, -4 * w)
+        canvas.draw()
+        renderer = canvas.get_renderer()
+        raw_data = renderer.tostring_rgb()
+        size = canvas.get_width_height()
+        return size, raw_data
 
     def package_machine_data_for_avg_plots(self, global_clock):
+        if PRINT_DEBUG: print("Packaging Data for Avg Utilization plots...")
         n_machines = len(self.machines)
         n_cpu = 0
         n_gpu = 0
@@ -147,6 +153,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         self.tick.append(global_clock)
 
     def draw_avg_plots(self, fig):
+        if PRINT_DEBUG: print("Drawing Avg Utilization plots...")
         ax = fig.add_subplot(111)
         fig.set_size_inches(PLOT_WIDTH*INCHES_PER_PIXEL, PLOT_HEIGHT*INCHES_PER_PIXEL)
         fig.tight_layout()
@@ -164,6 +171,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         ax.grid(color='0.95')
 
     def package_machine_data_for_bar_plots(self):
+        if PRINT_DEBUG: print("Packaging Data for Machine Utilization bar plots...")
         m_data = []
         ctr = 1
         for m in self.machines:
@@ -174,6 +182,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         return m_data
 
     def draw_bar_plots(self, fig, data_sets):
+        if PRINT_DEBUG: print("Drawing Machine Utilization bar plots...")
         plot_num = 1
         for i in range(len(data_sets)):
             machine_name = data_sets[i][0]
@@ -189,6 +198,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
             plot_num = plot_num + 1
 
     def draw_job_queue(self, job_queue, num_future_jobs):
+        if PRINT_DEBUG: print("Drawing current job queue...")
         # =======================================================
         #    Sets some starter values for queue representation
         # =======================================================
@@ -307,8 +317,14 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         labels.append(future_label)
 
         return shapes, labels
-    
+
+    def render_plots(self, fig):
+        canvas = FigureCanvasAgg(fig)
+        data, (w, h) = canvas.print_to_buffer()
+        return pyglet.image.ImageData(w, h, "RGBA", data, -4 * w)
+
     def categorize_job_load(self, job):
+        if PRINT_DEBUG: print("Classifying relative magnitude of requested resources from future jobs...")
         # there's probably a better way to do colors
         red    = (255,   0,   0)
         yellow = (255, 255,   0)
@@ -338,6 +354,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         return color
 
     def on_draw(self):
+        if PRINT_DEBUG: print("Drawing Pyglet window...")
         self.window.clear()
         self.graphs.blit(0, 0)
         self.batch.draw()
