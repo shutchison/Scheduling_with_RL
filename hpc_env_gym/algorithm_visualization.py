@@ -13,9 +13,10 @@ INCHES_PER_PIXEL = 1/plt.rcParams['figure.dpi']
 DPI = pylab.gcf().get_dpi()
 PLOT_WIDTH  = DPI * pylab.gcf().get_size_inches()[0]
 PLOT_HEIGHT = DPI * pylab.gcf().get_size_inches()[1] * 2
+PLOT_HEIGHT_MARGIN = PLOT_HEIGHT / 50
 #PLOT_WIDTH = 750
 #PLOT_HEIGHT = 980
-PLOT_HEIGHT_MARGIN = 20
+#PLOT_HEIGHT_MARGIN = 20
 QUEUE_WIDTH = 200
 MAX_ITEMS_IN_QUEUE = 30
 
