@@ -4,13 +4,17 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
 from scheduler import *
+import pylab
 
 INCHES_PER_PIXEL = 1/plt.rcParams['figure.dpi']
 
 # Going to make these manually set instead of auto-scaled to screen for ease of programming
 # All numbers in pixels except where noted
-PLOT_WIDTH = 750
-PLOT_HEIGHT = 980
+DPI = pylab.gcf().get_dpi()
+PLOT_WIDTH  = DPI * pylab.gcf().get_size_inches()[0]
+PLOT_HEIGHT = DPI * pylab.gcf().get_size_inches()[1] * 2
+#PLOT_WIDTH = 750
+#PLOT_HEIGHT = 980
 PLOT_HEIGHT_MARGIN = 20
 QUEUE_WIDTH = 200
 MAX_ITEMS_IN_QUEUE = 30
@@ -52,6 +56,8 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         self.job_queue_shapes = []
         self.job_queue_labels = []
 
+
+
     def inspect_jobs(self, jobs):
         req_cpu_list = []
         req_mem_list = []
@@ -64,7 +70,6 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         self.REQ_CPU_TERCILE_1 = np.quantile(req_cpu_list,.33)
         self.REQ_CPU_TERCILE_2 = np.quantile(req_cpu_list,.66)
 
-    # Does this or another function need to be @staticmethod?
     def pre_render(self, job_queue, num_future_jobs, global_clock, use_avg=True):
         self.set_window_size_loc()
         fig = self.create_window()
