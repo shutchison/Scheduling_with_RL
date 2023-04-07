@@ -115,9 +115,11 @@ class Scheduler():
         return (assigned_machine_index, assigned_machine)
                     
     def tick(self):
-        # returns True if the operation was successful and there's more work left to do.  False otherwise.
+        # returns terminated to step().
+        # True if there is nothing else to schedule
+        # False if the simulation still has jobs it can run or jobs that need to end.
         
-        print("global clock: {}".format(self.global_clock))
+        print("global clock: {:,}".format(self.global_clock))
         # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
         # move these jobs to self.job_queue ordered based on job.submision_time
         # iterate through self.running jobs and remove all jobs from machines whose job.end_time == self.global_clock
@@ -150,7 +152,7 @@ class Scheduler():
                 first_end = 1e100
 
             self.global_clock = min([first_submit, first_end])
-            print("Updating global clock to {}".format(self.global_clock))
+            print("Updating global clock to {:,}".format(self.global_clock))
             if self.global_clock == first_submit:
                 # move jobs who have been submitted now into the job_queue
                 while not self.future_jobs.empty():
@@ -159,7 +161,7 @@ class Scheduler():
                         break
                     elif current_first_submit == self.global_clock:
                         job = self.future_jobs.get()[1]
-                        print("{} submitted at time {}".format(job.job_name, self.global_clock))
+                        print("{} submitted at time {:,}".format(job.job_name, self.global_clock))
                         self.job_queue.append(job)
             
             if self.global_clock == first_end:
@@ -203,10 +205,13 @@ class Scheduler():
         
     def summary_statistics(self):
         s = "="*40 + "\n"
-        s += "global logical clock = {}\n".format(self.global_clock - self.clock_offset)
-        s += "num future jobs = {}, {}\n".format(len(self.future_jobs.queue), self.future_jobs.queue)
-        s += "num queued jobs = {}, {}\n".format(len(self.job_queue), self.job_queue)
-        s += "num running jobs = {}, {}\n".format(len(self.running_jobs.queue), self.running_jobs.queue)
+        s += "global logical clock = {:,}\n".format(self.global_clock - self.clock_offset)
+        #s += "num future jobs = {}, {}\n".format(len(self.future_jobs.queue), self.future_jobs.queue)
+        #s += "num queued jobs = {}, {}\n".format(len(self.job_queue), self.job_queue)
+        #s += "num running jobs = {}, {}\n".format(len(self.running_jobs.queue), self.running_jobs.queue)
+        s += "num future jobs = {}\n".format(len(self.future_jobs.queue))
+        s += "num queued jobs = {}\n".format(len(self.job_queue))
+        s += "num running jobs = {}\n".format(len(self.running_jobs.queue))
         s += "num completed jobs = {}\n".format(len(self.completed_jobs))
         s += "="*40
         

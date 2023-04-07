@@ -7,12 +7,15 @@ from job import Job
 from machine import Machine
 import numpy as np
 from algorithm_visualization import HPCEnvRenderer
+from gym.spaces.utils import flatten_space
+import numpy as np
 
-MAX_MEM = 1024000001 # largest amount of memory in any one node
+MAX_MEM = 1548 # largest amount of memory in any one node in Gb
 MAX_CPUs = 65 # largest number of CPUs in any one node
 MAX_GPUs = 9 # largets number of GPUs in any one node
-MAX_TIME = 31000000 # number of seconds which is the longest permitted job requested time (approx. one year)
+MAX_TIME = 673 # number of hours which is the longest job
 NUM_MACHINES_IN_CLUSTER = 8 # how many machines are in the cluster?
+MAX_RUNNING_JOBS = 100 # the most jobs on a machine at any time
 
 # extending the OpenAI Gym environment
 # https://www.gymlibrary.dev/api/core/
@@ -26,42 +29,36 @@ class HPCEnv(gym.Env):
         self.scheduler = Scheduler()
         # Define the observation space as a dictionary which represents
         # the state of the job queue and the state of the machines in the HPC.
-        job_dict = {"job_name" : spaces.Text(42),
-                    "req_mem" : spaces.Discrete(MAX_MEM),
-                    "req_cpus" : spaces.Discrete(MAX_CPUs),
-                    "req_gpus" : spaces.Discrete(MAX_GPUs),
-                    "req_duration" : spaces.Discrete(MAX_TIME)}
-        
-        # for testing
-        #job_dict = {}
-                    
-        job_dict_space = spaces.Dict(job_dict)
-        job_queue_space = spaces.Sequence(job_dict_space)
-        
-        machine_dict = {"node_name" : spaces.Text(42),
-                        #"percent_mem_avail" : spaces.Box(low=0.0, high=1.0),
-                        "mem_avail" : spaces.Discrete(MAX_MEM),
-                        #"percent_cpu_avail" : spaces.Box(low=0.0, high=1.0),
-                        "cpu_avail" : spaces.Discrete(MAX_CPUs),
-                        #"percent_gpu_avail" : spaces.Box(low=0.0, high=1.0),
-                        "gpu_avail" : spaces.Discrete(MAX_GPUs)
-                        }
-                        
-        
-        #for testing        
-        #machine_dict = {}
-        
-        machine_dict_space = spaces.Dict(machine_dict)
-        machine_tuple = tuple([machine_dict_space] * NUM_MACHINES_IN_CLUSTER)
-        machine_space = spaces.Tuple(machine_tuple)
-        
-        spaces_combined = {"job_queue" : job_queue_space,
-                           "machines" : machine_space}
-        
-        self.observation_space = spaces.Dict(spaces_combined)
-        
+        # observation scace is the next job to be scheudled and all machines
+        # next_job = [req_mem (in Gb), req_cpus, req_gpus, req_duration (in hours)]
+        # state of all machines
+        # machines = [[mem_avail (in Gb), cpus_avail, gpus_avail, num_running_jobs], [...], ...]
+        # observation_space = [next_job, machines]
+
+        next_job_tuple = spaces.Tuple(
+            [spaces.Discrete(MAX_MEM),
+            spaces.Discrete(MAX_CPUs),
+            spaces.Discrete(MAX_GPUs),
+            spaces.Discrete(MAX_TIME)
+            ]
+        )
+
+        machine_tuple = spaces.Tuple(
+            [spaces.Discrete(MAX_MEM),
+            spaces.Discrete(MAX_CPUs),
+            spaces.Discrete(MAX_GPUs),
+            spaces.Discrete(MAX_RUNNING_JOBS) # need this to make it have the same number of elements that the job tuple has
+            ]
+        )
+
+        self.observation_space = spaces.Tuple([next_job_tuple] + ([machine_tuple] * NUM_MACHINES_IN_CLUSTER))
+        #print()
+        #print("self.observation_space is ")
+        #pprint(self.observation_space)
+        #print()
+
         self.action_space = spaces.Discrete(NUM_MACHINES_IN_CLUSTER)
-    
+        
         self.job_assignments = []
         self.renderer = None
         
@@ -87,17 +84,14 @@ class HPCEnv(gym.Env):
         #    job_dict["req_gpus"] =  0
         #    job_dict["req_duration"] = 0
         
-        
-        job_list = []
-        for job in self.scheduler.job_queue:
-            d = {}
-            d["job_name"] = job.job_name
-            d["req_mem"] = job.req_mem
-            d["req_cpus"] = job.req_cpus
-            d["req_gpus"] =  job.req_gpus
-            d["req_duration"] = job.req_duration
-            job_list.append(d)
-            
+        next_job = self.scheduler.get_shortest_schedulable_job()
+        if next_job != None:
+            job_tuple = (next_job.req_mem//1000000, #convert to gb
+                        next_job.req_cpus,
+                        next_job.req_gpus,
+                        next_job.req_duration//3600) #convert to hours
+        else:
+            job_tuple = (0, 0, 0, 0)
         #for testing    
         #job_list = []
         
@@ -106,32 +100,34 @@ class HPCEnv(gym.Env):
         #pprint(job_queue_array)
         #print("="*40)
         
-        machine_list = []
+        obs = [job_tuple]
         for machine in self.scheduler.cluster.machines:
-            d = {}
-            d["node_name"] = machine.node_name
-            #d["percent_mem_avail"] = machine.avail_mem/machine.total_mem
-            d["mem_avail"] = machine.avail_mem
-            #d["percent_cpu_avail"] = machine.avail_cpus/machine.total_cpus
-            d["cpu_avail"] = machine.avail_cpus
-            #if machine.avail_gpus == 0:
-            #    d["percent_gpu_avail"] = 0.0
-            #else:
-            #    d["percent_gpu_avail"] = machine.avail_gpus/machine.total_gpus
-            d["gpu_avail"] = machine.avail_gpus
-            machine_list.append(d)
-            
+            machine_status = (machine.avail_mem//1000000,
+                              machine.avail_cpus,
+                              machine.avail_gpus,
+                              len(machine.running_jobs))
+            obs.append(machine_status)
+
+        obs_tuple = tuple(obs)
         #for testing
         #machine_list = []
-        machine_tuple = tuple(machine_list)
-        machine_array = np.array(machine_list)
+        #machine_tuple = tuple(machine_list)
+        #machine_array = np.array(machine_list)
         
-        obs_dict = {"job_queue" : job_list,
-                    "machines" : machine_tuple}
         #for key, value in machine_array[0].items():
         #    print("{} = {} : {}".format(key, value, type(value)))
-        return obs_dict
+        #flat_machines = [item for sublist in machines_tuple for item in sublist]
+        #combined_tuple = (job_tuple, flat_machines)
 
+        #flat_list = [item for sublist in combined_tuple for item in sublist]
+
+        #print(f"flat_list is {flat_list}")
+        #return np.asarray(flat_list , dtype=np.int64 )
+        #print("get_obs returns:")
+        #pprint(obs_tuple)
+        #print()
+        return obs_tuple
+    
     def reset(self, seed=None, options=None):
         """
         PARAMETERS:
@@ -178,7 +174,7 @@ class HPCEnv(gym.Env):
         #print("obs is of type {}:".format(type(obs)))
         #pprint(obs)
         info = {}
-        self.job_assignments = []
+        #self.job_assignments = []
 
         return obs, info
     
