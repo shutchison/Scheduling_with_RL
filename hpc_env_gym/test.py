@@ -11,16 +11,14 @@ options = {"machines_csv" : "machines.csv",
 
 env.reset(options=options)
 
-for i in range(4):
+for i in range(10000):
     print("Step #{}".format(i))
     node_to_sched = random.randint(0,7)
     observation, reward, terminated, truncated, info = env.step(node_to_sched)
     print("observation is: ")
     pprint(observation)
     print("="*60)
-    
-
-#env.render()
+    env.render()
 
 # for i in range(10000):
 #     print("="*40)

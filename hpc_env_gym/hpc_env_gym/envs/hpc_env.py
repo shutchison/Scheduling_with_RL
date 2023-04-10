@@ -229,8 +229,7 @@ class HPCEnv(gym.Env):
                 print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
                 self.scheduler.job_queue.append(job)
                 reward = -1
-                
-        self.scheduler.tick()       
+                      
         observation = self._get_obs()
         
         info = {}
@@ -249,7 +248,7 @@ class HPCEnv(gym.Env):
             arg_dict["all_machines"] = self.scheduler.cluster.machines
             self.renderer = HPCEnvRenderer(self.render_mode, arg_dict)
             
-        state = [self.scheduler.job_queue, len(self.scheduler.future_jobs.queue), self.scheduler.global_clock, False]
+        state = [self.scheduler.job_queue, len(self.scheduler.future_jobs.queue), self.scheduler.global_clock, True]
         rendered_thing = self.renderer.render(state)
         
         return rendered_thing
