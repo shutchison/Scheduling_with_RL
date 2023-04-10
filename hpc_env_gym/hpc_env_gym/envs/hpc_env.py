@@ -160,7 +160,7 @@ class HPCEnv(gym.Env):
         except KeyError as e:
             raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
         except TypeError as e:
-            raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
+            raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
             
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
@@ -206,8 +206,9 @@ class HPCEnv(gym.Env):
         print("Action: {}".format(action))
         print("RL Agent attempting to schedule to {}".format(self.scheduler.cluster.machines[action].node_name))
 
-        terminated = self.scheduler.tick()
-        truncated = False
+        truncated = self.scheduler.tick()
+        terminated = self.scheduler.is_simulation_complete()
+        
         reward = 0
         
         if not terminated:
@@ -229,6 +230,7 @@ class HPCEnv(gym.Env):
                 self.scheduler.job_queue.append(job)
                 reward = -1
                 
+        self.scheduler.tick()       
         observation = self._get_obs()
         
         info = {}

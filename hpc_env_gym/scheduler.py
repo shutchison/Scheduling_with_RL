@@ -113,11 +113,13 @@ class Scheduler():
                     assigned_machine_index = machine_index
                     
         return (assigned_machine_index, assigned_machine)
-                    
+
     def tick(self):
-        # returns terminated to step().
-        # True if there is nothing else to schedule
-        # False if the simulation still has jobs it can run or jobs that need to end.
+        # tick will advance time until at least one job can be scheduled, but will
+        # do no scheduling itself.
+
+        # returns True if the state can schedule more jobs, or False if there 
+        # is nothing else for the simulation to do.
         
         print("global clock: {:,}".format(self.global_clock))
         # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
@@ -136,7 +138,7 @@ class Scheduler():
         if self.get_schedulable_jobs() is not None:
             # There are jobs which can still be scheduled.  We don't need to advance the clock any since there is
             # still work which can be done.
-            return False
+            return True
         
         keep_going = True
         first_submit = 1e100
@@ -190,19 +192,27 @@ class Scheduler():
             
             if self.get_schedulable_jobs() is not None:
                 keep_going = False
-            
-            if self.future_jobs.empty() and self.running_jobs.empty() and self.get_schedulable_jobs() is None:
+
+        if self.is_simulation_complete():
+            return False
+        
+        return True
+    
+    def is_simulation_complete(self):
+        # returns True if there is nothing left to do.
+        # False otherwise
+        if self.future_jobs.empty() and self.running_jobs.empty() and self.get_schedulable_jobs() is None:
                 print("No future jobs, no running jobs, and no more jobs I can schedule!  Nothing left to do.")
                 print(self.summary_statistics())
                 return True
             
-            if self.global_clock == 1e100:
-                print("Global clock has gone to infinity.  Something went wrong or we're done?")
-                print(self.summary_statistics())
-                return True
-                
-        return False
+        if self.global_clock == 1e100:
+            print("Global clock has gone to infinity.  Something went wrong or we're done?")
+            print(self.summary_statistics())
+            return True
         
+        return False
+
     def summary_statistics(self):
         s = "="*40 + "\n"
         s += "global logical clock = {:,}\n".format(self.global_clock - self.clock_offset)
