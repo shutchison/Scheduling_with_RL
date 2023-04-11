@@ -8,15 +8,19 @@ import pylab
 
 INCHES_PER_PIXEL = 1/plt.rcParams['figure.dpi']
 
-# Going to make these manually set instead of auto-scaled to screen for ease of programming
 # All numbers in pixels except where noted
+# This is known to not work on all screens for some reason, sometimes the window cuts off
+# the top part of the images
 DPI = pylab.gcf().get_dpi()
 PLOT_WIDTH  = DPI * pylab.gcf().get_size_inches()[0]
 PLOT_HEIGHT = DPI * pylab.gcf().get_size_inches()[1] * 2
-PLOT_HEIGHT_MARGIN = 60
+PLOT_HEIGHT_MARGIN = 60 # hard coded value to get image to show correctly on both of our screens
+
+# Uncomment to manually set/hardcode pyglet window dimensions
 #PLOT_WIDTH = 750
 #PLOT_HEIGHT = 980
 #PLOT_HEIGHT_MARGIN = 20
+
 QUEUE_WIDTH = 200
 MAX_ITEMS_IN_QUEUE = 30
 
@@ -33,7 +37,7 @@ SUPPORTED_MODES = {
     'human': lambda: HPCEnvHumanRenderer
 }
 
-class HPCEnvHumanRenderer(pyglet.window.Window):
+class HPCEnvHumanRenderer():
     # For assigning jobs a Red/Yellow/Green distinction based on amount of requested resources
     REQ_MEM_TERCILE_1 = 0
     REQ_MEM_TERCILE_2 = 0
@@ -173,7 +177,7 @@ class HPCEnvHumanRenderer(pyglet.window.Window):
         ax.set_ylim([0, 100])
         ax.yaxis.set_ticks(np.arange(0, 110, 10))
         ax.set(xlabel="Global Clock", ylabel='% Utilization', title="Average Node Utilization")
-        ax.legend(['CPU Nodes', 'MEM Nodes', 'GPU Nodes', 'All Nodes'],loc='lower right')
+        ax.legend(['CPU Nodes', 'MEM Nodes', 'GPU Nodes', 'All Nodes'],loc='upper left')
         ax.grid(color='0.95')
 
     def package_machine_data_for_bar_plots(self):

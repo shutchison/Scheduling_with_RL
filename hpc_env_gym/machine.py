@@ -37,10 +37,7 @@ class Machine():
         self.avail_gpus_at_times.append(self.avail_gpus)
     
     def can_schedule(self, job):
-        if job.req_mem <= self.avail_mem and job.req_cpus <= self.avail_cpus and job.req_gpus <= self.avail_gpus:
-            return True
-        else:
-            return False
+        return (job.req_mem <= self.avail_mem) and (job.req_cpus <= self.avail_cpus) and (job.req_gpus <= self.avail_gpus)
     
     def start_job(self, job):
         self.running_jobs.append(job)
@@ -64,7 +61,7 @@ class Machine():
                 break
         
         if job_to_remove == None:
-            print("{} not found running on this machine".format(job_name))
+            print("Machine {} reporting that job {} not found running on it".format(self.node_name, job_name))
         else:
             self.avail_mem +=  job_to_remove.req_mem
             self.avail_cpus += job_to_remove.req_cpus

@@ -69,22 +69,7 @@ class HPCEnv(gym.Env):
         pass
     
     def _get_obs(self):
-        #job = self.scheduler.get_shortest_schedulable_job()
-        #job_dict = {}
-        #if job is not None:
-        #    job_dict["job_name"] = job.job_name
-        #    job_dict["req_mem"] = job.req_mem
-        #    job_dict["req_cpus"] = job.req_cpus
-        #    job_dict["req_gpus"] =  job.req_gpus
-        #    job_dict["req_duration"] = job.req_duration
-        #else:
-        #    job_dict["job_name"] = "NoJob"
-        #    job_dict["req_mem"] = 0
-        #    job_dict["req_cpus"] = 0
-        #    job_dict["req_gpus"] =  0
-        #    job_dict["req_duration"] = 0
-        
-        next_job = self.scheduler.get_shortest_schedulable_job()
+        next_job = self.scheduler.peek_shortest_schedulable_job()
         if next_job != None:
             job_tuple = (next_job.req_mem//1000000, #convert to gb
                         next_job.req_cpus,
@@ -92,13 +77,6 @@ class HPCEnv(gym.Env):
                         next_job.req_duration//3600) #convert to hours
         else:
             job_tuple = (0, 0, 0, 0)
-        #for testing    
-        #job_list = []
-        
-        #job_queue_array = np.array(job_list)
-        #print("Job queue array is:")
-        #pprint(job_queue_array)
-        #print("="*40)
         
         obs = [job_tuple]
         for machine in self.scheduler.cluster.machines:
@@ -109,23 +87,7 @@ class HPCEnv(gym.Env):
             obs.append(machine_status)
 
         obs_tuple = tuple(obs)
-        #for testing
-        #machine_list = []
-        #machine_tuple = tuple(machine_list)
-        #machine_array = np.array(machine_list)
-        
-        #for key, value in machine_array[0].items():
-        #    print("{} = {} : {}".format(key, value, type(value)))
-        #flat_machines = [item for sublist in machines_tuple for item in sublist]
-        #combined_tuple = (job_tuple, flat_machines)
 
-        #flat_list = [item for sublist in combined_tuple for item in sublist]
-
-        #print(f"flat_list is {flat_list}")
-        #return np.asarray(flat_list , dtype=np.int64 )
-        #print("get_obs returns:")
-        #pprint(obs_tuple)
-        #print()
         return obs_tuple
     
     def reset(self, seed=None, options=None):
@@ -206,32 +168,32 @@ class HPCEnv(gym.Env):
         print("Action: {}".format(action))
         print("RL Agent attempting to schedule to {}".format(self.scheduler.cluster.machines[action].node_name))
 
-        truncated = self.scheduler.tick()
-        terminated = self.scheduler.is_simulation_complete()
-        
+        truncated = False
+        terminated = self.scheduler.simulation_is_complete()
         reward = 0
         
         if not terminated:
             proposed_machine_index = action
             proposed_machine = self.scheduler.cluster.machines[proposed_machine_index]
             
-            job = self.scheduler.get_shortest_schedulable_job()
-            print("Trying to schedule {} on {}".format(job, proposed_machine))
-            best_machine_index, best_machine = self.scheduler.get_best_bin_first_machine(job)
-            
-            if proposed_machine.can_schedule(job):
-                self.scheduler.run_job(job, proposed_machine_index)
-                if proposed_machine_index == best_machine_index:
-                    reward = 1
+            job = self.scheduler.pop_shortest_schedulable_job()
+            if job is not None:
+                print("Trying to schedule {} on {}".format(job, proposed_machine))
+                best_machine_index, best_machine = self.scheduler.get_best_bin_first_machine(job)
+                
+                if proposed_machine.can_schedule(job):
+                    self.scheduler.run_job(job, proposed_machine_index)
+                    if proposed_machine_index == best_machine_index:
+                        reward = 1
+                    else:
+                        reward = 0
                 else:
-                    reward = 0
-            else:
-                print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
-                self.scheduler.job_queue.append(job)
-                reward = -1
-                      
+                    print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
+                    self.scheduler.job_queue.append(job)
+                    reward = -1
+            
+        truncated = self.scheduler.tick()
         observation = self._get_obs()
-        
         info = {}
 
         print(self.scheduler.summary_statistics())

@@ -18,6 +18,7 @@ class Scheduler():
         self.job_queue = []
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
+        self.schedulable_jobs = []
     
     def reset(self, machines_csv, jobs_csv):
         """
@@ -58,21 +59,38 @@ class Scheduler():
                 if machine.can_schedule(job):
                     schedulable_jobs.append(job)
                     break
-        if len(schedulable_jobs) == 0:
-            schedulable_jobs = None
         return schedulable_jobs
 
-    def get_shortest_schedulable_job(self):
-        # locates the shortest schedulable job in the job_queue, if any, pops is off the queue and returns it.
+    def jobs_can_be_scheduled(self):
+        for job in self.job_queue:
+            for machine in self.cluster.machines:
+                if machine.can_schedule(job):
+                    return True
+        return False
+
+    def get_shortest_schedulable_job_index(self):
+        # locates the shortest schedulable job in the job_queue, if any, and returns its index
         schedulable_jobs = self.get_schedulable_jobs()
-        if schedulable_jobs is None:
-            return None
+        if len(schedulable_jobs) <= 0:
+            return None, None
         else:
             shortest_job = sorted(schedulable_jobs, key=lambda x: x.req_duration)[0]
-            for index, j in enumerate(self.job_queue):
-                if j == shortest_job:
-                    return self.job_queue.pop(index)
-        return None
+            for index, job in enumerate(self.job_queue):
+                if job == shortest_job:
+                    return index, job
+
+    def pop_shortest_schedulable_job(self):
+        # pops shortest schedulable job and returns it
+        index, job = self.get_shortest_schedulable_job_index()
+        if index is not None:
+            return self.job_queue.pop(index)
+        else:
+            return None
+
+    def peek_shortest_schedulable_job(self):
+        # peeks shortest schedulable job
+        index, job = self.get_shortest_schedulable_job_index()
+        return job
 
     def get_best_bin_first_machine(self, job):
         min_fill_margin = 10
@@ -115,103 +133,129 @@ class Scheduler():
         return (assigned_machine_index, assigned_machine)
 
     def tick(self):
-        # tick will advance time until at least one job can be scheduled, but will
-        # do no scheduling itself.
+        # tick will advance time until at least one job can be scheduled or ended,
+        # and then it will queue and/or end those jobs.
+        # It will do no scheduling itself.
 
-        # returns True if the state can schedule more jobs, or False if there 
+        # returns True when the state can schedule more jobs or False if there 
         # is nothing else for the simulation to do.
         
-        print("global clock: {:,}".format(self.global_clock))
-        # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
-        # move these jobs to self.job_queue ordered based on job.submision_time
-        # iterate through self.running jobs and remove all jobs from machines whose job.end_time == self.global_clock
-        # append these jobs to self.completed_jobs
-        # iterate through self.job_queue and attempt to schedule all jobs using appropriate algorithm
-        # move successfully scheduled jobs to the self.running_jobs
-
-        # Need the minimum time between submit and ending
-        # In either of these events, see if we can schedule more jobs
-        # If we can, call schedule to do so
-        # if not, keep calling tick again until we can.  This should cause 
-        # when we return from this function, a job can be scheduled.
+        # Gets the minimum time value between a job submission and job end (both could happen at once)
+        # Updates the simulation state depending on which action(s) are taken
+        # Then sees if we can schedule more jobs
+        # If not, repeats the process until we can
+        # This should cause that when we return from this function, a job can be scheduled.
         
-        if self.get_schedulable_jobs() is not None:
-            # There are jobs which can still be scheduled.  We don't need to advance the clock any since there is
-            # still work which can be done.
+        print("global clock: {:,}".format(self.global_clock))
+
+        # If there are no more tasks for the simulation, return.
+        if self.simulation_is_complete():
+            return False
+
+        # If there are still schedulable jobs, don't update the system state.
+        if self.jobs_can_be_scheduled():
             return True
         
-        keep_going = True
-        first_submit = 1e100
-        first_end = 1e100
-        while keep_going:
-            if not self.future_jobs.empty():
-                first_submit = self.future_jobs.queue[0][0]
-            else:
-                first_submit = 1e100
-            if not self.running_jobs.empty():
-                first_end = self.running_jobs.queue[0][0]
-            else:
-                first_end = 1e100
+        # Move time to the next event, update the system state, check for schedulable jobs, possibly repeat
+        advancing_time = True
+        while advancing_time:
 
-            self.global_clock = min([first_submit, first_end])
+            next_job_submit_time = 1e100
+            next_job_end_time = 1e100
+            if not self.future_jobs.empty(): next_job_submit_time = self.future_jobs.queue[0][0] 
+            if not self.running_jobs.empty(): next_job_end_time = self.running_jobs.queue[0][0]
+
+            self.global_clock = min([next_job_submit_time, next_job_end_time])
             print("Updating global clock to {:,}".format(self.global_clock))
-            if self.global_clock == first_submit:
-                # move jobs who have been submitted now into the job_queue
-                while not self.future_jobs.empty():
-                    current_first_submit = self.future_jobs.queue[0][0]
-                    if current_first_submit > self.global_clock:
-                        break
-                    elif current_first_submit == self.global_clock:
-                        job = self.future_jobs.get()[1]
-                        print("{} submitted at time {:,}".format(job.job_name, self.global_clock))
-                        self.job_queue.append(job)
-            
-            if self.global_clock == first_end:
-                # stop all jobs who end at the current time and move them to completed
-                while not self.running_jobs.empty():
-                    current_first_end = self.running_jobs.queue[0][0]
-                    if current_first_end > self.global_clock:
-                        break
-                    elif current_first_end == self.global_clock:
-                        end_time, job = self.running_jobs.get()
-                        found = False
-                        for m in self.cluster.machines:
-                            for j in m.running_jobs:
-                                if job.job_name == j.job_name:
-                                    print("job {} ending at time {}".format(job.job_name, self.global_clock))
-                                    found = True
-                                    m.stop_job(job.job_name)
-                                    self.completed_jobs.append(job)
-                                    #self.machines_log_status()
-                                    #self.log_training_data_csv(job, self.machines, m.node_name, "Stop")
-                                    break
-                            if found:
-                                break
-                        if not found:
-                            print("Error!  Failed to find and end {}".format(job.job_name))
-            
-            if self.get_schedulable_jobs() is not None:
-                keep_going = False
 
-        if self.is_simulation_complete():
-            return False
+            if self.global_clock == next_job_submit_time: self.tick_queue_jobs()
+            if self.global_clock == next_job_end_time: self.tick_end_jobs()
+            
+            if self.jobs_can_be_scheduled():
+                advancing_time = False
         
+        if self.simulation_is_complete():
+            return False
+
         return True
-    
-    def is_simulation_complete(self):
+
+    def tick_end(self):
+
+        # If there are no more tasks for the simulation, return.
+        if self.simulation_is_complete():
+            return False
+
+        # Move time to the next event, update the system state, check for schedulable jobs, possibly repeat
+        advancing_time = True
+        while advancing_time:
+
+            if not self.running_jobs.empty(): next_job_end_time = self.running_jobs.queue[0][0]
+
+            self.global_clock = next_job_end_time
+            print("Updating global clock to {:,}".format(self.global_clock))
+
+            if self.global_clock == next_job_end_time: self.tick_end_jobs()
+            
+            if self.jobs_can_be_scheduled():
+                advancing_time = False
+        
+        if self.simulation_is_complete():
+            return False
+
+        return True
+
+    def tick_queue_jobs(self):
+        # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
+        # move these jobs to self.job_queue ordered based on job.submision_time
+        while not self.future_jobs.empty():
+            submit_time = self.future_jobs.queue[0][0]
+            if submit_time > self.global_clock:
+                break
+            elif submit_time == self.global_clock:
+                new_time, new_job = self.future_jobs.get()
+                print("{} submitted at time {:,}".format(new_job.job_name, self.global_clock))
+                self.job_queue.append(new_job)
+
+    def tick_end_jobs(self):
+        # iterate through self.running jobs and remove all jobs from machines whose job.end_time == self.global_clock
+        # append these jobs to self.completed_jobs
+        while not self.running_jobs.empty():
+            end_time = self.running_jobs.queue[0][0]
+            if end_time > self.global_clock:
+                break
+            elif end_time <= self.global_clock:
+                old_time, ending_job = self.running_jobs.get()
+                found_job = False
+                for machine in self.cluster.machines:
+                    for running_job in machine.running_jobs:
+                        if ending_job.job_name == running_job.job_name:
+                            print("job {} ending at time {}".format(ending_job.job_name, self.global_clock))
+                            found_job = True
+                            machine.stop_job(ending_job.job_name)
+                            self.completed_jobs.append(ending_job)
+                            #self.machines_log_status()
+                            #self.log_training_data_csv(job, self.machines, m.node_name, "Stop")
+                            break
+                    if found_job:
+                        break
+                if not found_job:
+                    print("Error! Failed to find and end {}".format(ending_job.job_name))
+
+    def simulation_is_complete(self):
         # returns True if there is nothing left to do.
         # False otherwise
-        if self.future_jobs.empty() and self.running_jobs.empty() and self.get_schedulable_jobs() is None:
-                print("No future jobs, no running jobs, and no more jobs I can schedule!  Nothing left to do.")
-                print(self.summary_statistics())
-                return True
+        sim_complete = False
+        if self.future_jobs.empty() and self.running_jobs.empty() and not self.jobs_can_be_scheduled():
+            print("No future jobs, no running jobs, and no more jobs I can schedule!  Nothing left to do.")
+            print(self.summary_statistics())
+            sim_complete = True
             
         if self.global_clock == 1e100:
             print("Global clock has gone to infinity.  Something went wrong or we're done?")
             print(self.summary_statistics())
-            return True
+            sim_complete = True
         
-        return False
+        return sim_complete
 
     def summary_statistics(self):
         s = "="*40 + "\n"
