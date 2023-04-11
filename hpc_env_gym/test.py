@@ -18,7 +18,7 @@ dummy_job = Job("job",
                 env.scheduler.job_queue[0].req_gpus,
                 env.scheduler.job_queue[0].req_duration,
                 0,
-                env.scheduler.global_clock)
+                0)
 
 def update_dummy_job(obs):
     return Job("job",
