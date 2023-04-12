@@ -140,11 +140,11 @@ class Scheduler():
         # returns True when the state can schedule more jobs or False if there 
         # is nothing else for the simulation to do.
         
-        # Gets the minimum time value between a job submission and job end (both could happen at once)
+        # Gets the minimum time value between the next job submission and/or job end (both could happen at once)
         # Updates the simulation state depending on which action(s) are taken
         # Then sees if we can schedule more jobs
         # If not, repeats the process until we can
-        # This should cause that when we return from this function, a job can be scheduled.
+        # This should create a system state such that upon return, a job can be scheduled.
         
         print("global clock: {:,}".format(self.global_clock))
 
@@ -179,31 +179,6 @@ class Scheduler():
 
         return True
 
-    def tick_end(self):
-
-        # If there are no more tasks for the simulation, return.
-        if self.simulation_is_complete():
-            return False
-
-        # Move time to the next event, update the system state, check for schedulable jobs, possibly repeat
-        advancing_time = True
-        while advancing_time:
-
-            if not self.running_jobs.empty(): next_job_end_time = self.running_jobs.queue[0][0]
-
-            self.global_clock = next_job_end_time
-            print("Updating global clock to {:,}".format(self.global_clock))
-
-            if self.global_clock == next_job_end_time: self.tick_end_jobs()
-            
-            if self.jobs_can_be_scheduled():
-                advancing_time = False
-        
-        if self.simulation_is_complete():
-            return False
-
-        return True
-
     def tick_queue_jobs(self):
         # iterate through self.future_jobs to find all jobs with job.submission_time == self.global_clock
         # move these jobs to self.job_queue ordered based on job.submision_time
@@ -211,7 +186,7 @@ class Scheduler():
             submit_time = self.future_jobs.queue[0][0]
             if submit_time > self.global_clock:
                 break
-            elif submit_time == self.global_clock:
+            elif submit_time <= self.global_clock:
                 new_time, new_job = self.future_jobs.get()
                 print("{} submitted at time {:,}".format(new_job.job_name, self.global_clock))
                 self.job_queue.append(new_job)
