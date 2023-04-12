@@ -101,7 +101,7 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 class Agent(nn.Module):
     def __init__(self, envs):
         super().__init__()
-        print(f"envs.single_observation_space.shape is {envs.single_observation_space.shape}")
+        #print(f"envs.single_observation_space.shape is {envs.single_observation_space.shape}")
         
         self.critic = nn.Sequential(
             layer_init(nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)),
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
     if args.track:
         import wandb
-
+    
         wandb.init(
             project=args.wandb_project_name,
             entity=args.wandb_entity,
@@ -172,14 +172,14 @@ if __name__ == "__main__":
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
     
-    print("envs is: {}".format(envs))
-    from pprint import pprint
-    pprint(envs.__dict__)
-    print()
-    print("single_observation_space is:")
-    pprint(envs.single_observation_space)
-    print(type(envs.single_observation_space))
-    print()
+    # print("envs is: {}".format(envs))
+    # from pprint import pprint
+    # pprint(envs.__dict__)
+    # print()
+    # print("single_observation_space is:")
+    # pprint(envs.single_observation_space)
+    # print(type(envs.single_observation_space))
+    # print()
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
 
-            print(f"info here is {info}")
+            #print(f"info here is {info}")
             #for item in info: #don't need to iterate trhough if I'm only doing one
                 # if "episode" in item.keys():
                 #     print(f"global_step={global_step}, episodic_return={item['episode']['r']}")

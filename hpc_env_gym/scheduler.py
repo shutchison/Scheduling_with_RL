@@ -147,7 +147,7 @@ class Scheduler():
         # If not, repeats the process until we can
         # This should create a system state such that upon return, a job can be scheduled.
         
-        print("global clock: {:,}".format(self.global_clock))
+        #print("global clock: {:,}".format(self.global_clock))
 
         # If there are no more tasks for the simulation, return.
         if self.simulation_is_complete():
@@ -170,7 +170,7 @@ class Scheduler():
 
             if self.global_clock <= 1e99:
                 self.global_clock = min([next_job_submit_time, next_job_end_time])
-                print("Updating global clock to {:,}".format(self.global_clock))
+                #print("Updating global clock to {:,}".format(self.global_clock))
             else:
                 print(f"global clock has gone to {self.global_clock}.  Truncating.")
                 return True
@@ -197,7 +197,7 @@ class Scheduler():
                 break
             elif submit_time <= self.global_clock:
                 new_time, new_job = self.future_jobs.get()
-                print("{} submitted at time {:,}".format(new_job.job_name, self.global_clock))
+                #print("{} submitted at time {:,}".format(new_job.job_name, self.global_clock))
                 self.job_queue.append(new_job)
 
     def tick_end_jobs(self):
@@ -213,7 +213,7 @@ class Scheduler():
                 for machine in self.cluster.machines:
                     for running_job in machine.running_jobs:
                         if ending_job.job_name == running_job.job_name:
-                            print("job {} ending at time {}".format(ending_job.job_name, self.global_clock))
+                            #print("job {} ending at time {}".format(ending_job.job_name, self.global_clock))
                             found_job = True
                             machine.stop_job(ending_job.job_name)
                             self.completed_jobs.append(ending_job)

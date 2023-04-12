@@ -102,7 +102,7 @@ class HPCEnv(gym.Env):
         
         obs_array = np.array(obs, dtype=np.float32)
 
-        print(f"_get_obs is returning: {obs_array}\n{obs_array.shape}")
+        #print(f"_get_obs is returning: {obs_array}\n{obs_array.shape}")
 
         return obs_array
 
@@ -163,7 +163,7 @@ class HPCEnv(gym.Env):
         
         # Unsure how to pass these in, so hard coding for the moment
         machines_csv_name = "machines.csv"
-        jobs_csv_name = "jobs.csv"
+        jobs_csv_name = "200_jobs.csv"
 
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
@@ -206,7 +206,7 @@ class HPCEnv(gym.Env):
         """
         
         # The action is the index of the machine on which to start this job
-        print("Action: {}".format(action))
+        #print("Action: {}".format(action))
         print("RL Agent attempting to schedule to {}".format(self.scheduler.cluster.machines[action].node_name))
 
         truncated = False
@@ -219,7 +219,7 @@ class HPCEnv(gym.Env):
             
             job = self.scheduler.pop_shortest_schedulable_job()
             if job is not None:
-                print("Trying to schedule {} on {}".format(job, proposed_machine))
+                #print("Trying to schedule {} on {}".format(job, proposed_machine))
                 best_machine_index, best_machine = self.scheduler.get_best_bin_first_machine(job)
                 
                 if proposed_machine.can_schedule(job):
@@ -229,7 +229,7 @@ class HPCEnv(gym.Env):
                     else:
                         reward = 0
                 else:
-                    print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
+                    #print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
                     self.scheduler.job_queue.append(job)
                     reward = -1
             
@@ -237,6 +237,7 @@ class HPCEnv(gym.Env):
         observation = self._get_obs()
         info = {}
 
+        print(f"Rewarded with {reward}")
         print(self.scheduler.summary_statistics())
         return observation, reward, terminated, truncated, info
         
