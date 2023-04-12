@@ -137,7 +137,8 @@ class Scheduler():
         # and then it will queue and/or end those jobs.
         # It will do no scheduling itself.
 
-        # returns True when the state can schedule more jobs or False if there 
+        # returns truncated to step so it will return
+        # False when the state can schedule more jobs or True if there 
         # is nothing else for the simulation to do.
         
         # Gets the minimum time value between a job submission and job end (both could happen at once)
@@ -150,11 +151,11 @@ class Scheduler():
 
         # If there are no more tasks for the simulation, return.
         if self.simulation_is_complete():
-            return False
+            return True
 
         # If there are still schedulable jobs, don't update the system state.
         if self.jobs_can_be_scheduled():
-            return True
+            return False
         
         # Move time to the next event, update the system state, check for schedulable jobs, possibly repeat
         advancing_time = True
@@ -162,22 +163,30 @@ class Scheduler():
 
             next_job_submit_time = 1e100
             next_job_end_time = 1e100
-            if not self.future_jobs.empty(): next_job_submit_time = self.future_jobs.queue[0][0] 
-            if not self.running_jobs.empty(): next_job_end_time = self.running_jobs.queue[0][0]
+            if not self.future_jobs.empty(): 
+                next_job_submit_time = self.future_jobs.queue[0][0] 
+            if not self.running_jobs.empty(): 
+                next_job_end_time = self.running_jobs.queue[0][0]
 
-            self.global_clock = min([next_job_submit_time, next_job_end_time])
-            print("Updating global clock to {:,}".format(self.global_clock))
+            if self.global_clock <= 1e99:
+                self.global_clock = min([next_job_submit_time, next_job_end_time])
+                print("Updating global clock to {:,}".format(self.global_clock))
+            else:
+                print(f"global clock has gone to {self.global_clock}.  Truncating.")
+                return True
 
-            if self.global_clock == next_job_submit_time: self.tick_queue_jobs()
-            if self.global_clock == next_job_end_time: self.tick_end_jobs()
+            if self.global_clock == next_job_submit_time: 
+                self.tick_queue_jobs()
+            if self.global_clock == next_job_end_time: 
+                self.tick_end_jobs()
             
             if self.jobs_can_be_scheduled():
                 advancing_time = False
         
         if self.simulation_is_complete():
-            return False
+            return True
 
-        return True
+        return False
 
     def tick_end(self):
 

@@ -8,7 +8,7 @@ from job import Job
 env = gym.make("HPCEnv-v0", render_mode="human")
 
 options = {"machines_csv" : "machines.csv",
-           "jobs_csv" : "jobs.csv"}
+           "jobs_csv" : "200_jobs.csv"}
 
 env.reset(options=options)
 
@@ -41,7 +41,7 @@ for i in range(10000):
     node_to_sched = get_bbf_node_to_schedule(env.scheduler, dummy_job)
     
     observation, reward, terminated, truncated, info = env.step(node_to_sched)
-    
+
     print("observation is: ")
     pprint(observation)
     print("="*60)
@@ -50,3 +50,8 @@ for i in range(10000):
     env.render()
     
     dummy_job = update_dummy_job(observation)
+
+    if terminated or truncated:
+        print(f"Terminated is {terminated}")
+        print(f"truncated is {truncated}")
+        break

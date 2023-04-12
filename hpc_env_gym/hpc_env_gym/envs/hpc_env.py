@@ -210,7 +210,7 @@ class HPCEnv(gym.Env):
             arg_dict["all_machines"] = self.scheduler.cluster.machines
             self.renderer = HPCEnvRenderer(self.render_mode, arg_dict)
             
-        state = [self.scheduler.job_queue, len(self.scheduler.future_jobs.queue), self.scheduler.global_clock, True]
+        state = [self.scheduler.job_queue, len(self.scheduler.future_jobs.queue), self.scheduler.global_clock, False]
         rendered_thing = self.renderer.render(state)
         
         return rendered_thing
