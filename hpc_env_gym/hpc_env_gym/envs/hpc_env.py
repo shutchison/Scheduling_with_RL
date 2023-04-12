@@ -7,8 +7,8 @@ from job import Job
 from machine import Machine
 import numpy as np
 from algorithm_visualization import HPCEnvRenderer
-from gym.spaces.utils import flatten_space
 import numpy as np
+from copy import deepcopy
 
 MAX_MEM = 1548 # largest amount of memory in any one node in Gb
 MAX_CPUs = 65 # largest number of CPUs in any one node
@@ -35,23 +35,37 @@ class HPCEnv(gym.Env):
         # machines = [[mem_avail (in Gb), cpus_avail, gpus_avail, num_running_jobs], [...], ...]
         # observation_space = [next_job, machines]
 
-        next_job_tuple = spaces.Tuple(
-            [spaces.Discrete(MAX_MEM),
-            spaces.Discrete(MAX_CPUs),
-            spaces.Discrete(MAX_GPUs),
-            spaces.Discrete(MAX_TIME)
-            ]
-        )
+        ##################
+        # Previously working observations space, but I need to change it.
+        # next_job_tuple = spaces.Tuple(
+        #     [spaces.Discrete(MAX_MEM),
+        #     spaces.Discrete(MAX_CPUs),
+        #     spaces.Discrete(MAX_GPUs),
+        #     spaces.Discrete(MAX_TIME)
+        #     ]
+        # )
+        # machine_tuple = spaces.Tuple(
+        #     [spaces.Discrete(MAX_MEM),
+        #     spaces.Discrete(MAX_CPUs),
+        #     spaces.Discrete(MAX_GPUs),
+        #     spaces.Discrete(MAX_RUNNING_JOBS) # need this to make it have the same number of elements that the job tuple has
+        #     ]
+        # )
+        # self.observation_space = spaces.Tuple([next_job_tuple] + ([machine_tuple] * NUM_MACHINES_IN_CLUSTER))
+        ##################
 
-        machine_tuple = spaces.Tuple(
-            [spaces.Discrete(MAX_MEM),
-            spaces.Discrete(MAX_CPUs),
-            spaces.Discrete(MAX_GPUs),
-            spaces.Discrete(MAX_RUNNING_JOBS) # need this to make it have the same number of elements that the job tuple has
-            ]
-        )
 
-        self.observation_space = spaces.Tuple([next_job_tuple] + ([machine_tuple] * NUM_MACHINES_IN_CLUSTER))
+        # self.observations space needs to be as flat as possible for ppo?
+        # next_job details in the first four places
+        obs = [MAX_MEM, MAX_CPUs, MAX_GPUs, MAX_TIME]
+        # Status for each machine in the cluster
+        obs.extend([MAX_MEM, MAX_CPUs, MAX_GPUs] * NUM_MACHINES_IN_CLUSTER)
+
+        low = np.array([0]* (4 + 3*NUM_MACHINES_IN_CLUSTER))
+        high = np.array(obs)
+
+        self.observation_space = spaces.Box(low, high)
+
         #print()
         #print("self.observation_space is ")
         #pprint(self.observation_space)
@@ -69,26 +83,48 @@ class HPCEnv(gym.Env):
         pass
     
     def _get_obs(self):
+        machines = []
+        machines = [[machine.avail_mem//1000000,
+                     machine.avail_cpus,
+                     machine.avail_gpus] for machine in self.scheduler.cluster.machines]
+        flat_machines = [item for sublist in machines for item in sublist]
+        
         next_job = self.scheduler.peek_shortest_schedulable_job()
+        obs = []
         if next_job != None:
-            job_tuple = (next_job.req_mem//1000000, #convert to gb
+            obs = [next_job.req_mem//1000000, #convert to gb
                         next_job.req_cpus,
                         next_job.req_gpus,
-                        next_job.req_duration//3600) #convert to hours
+                        next_job.req_duration//3600 #convert to hours
+                        ] + flat_machines
         else:
-            job_tuple = (0, 0, 0, 0)
+            obs = [0,0,0,0] + flat_machines
         
-        obs = [job_tuple]
-        for machine in self.scheduler.cluster.machines:
-            machine_status = (machine.avail_mem//1000000,
-                              machine.avail_cpus,
-                              machine.avail_gpus,
-                              len(machine.running_jobs))
-            obs.append(machine_status)
+        obs_array = np.array(obs, dtype=np.float32)
 
-        obs_tuple = tuple(obs)
+        print(f"_get_obs is returning: {obs_array}\n{obs_array.shape}")
 
-        return obs_tuple
+        return obs_array
+
+        # if next_job != None:
+        #     job_tuple = (next_job.req_mem//1000000, #convert to gb
+        #                 next_job.req_cpus,
+        #                 next_job.req_gpus,
+        #                 next_job.req_duration//3600) #convert to hours
+        # else:
+        #     job_tuple = (0, 0, 0, 0)
+        
+        # obs = [job_tuple]
+        # for machine in self.scheduler.cluster.machines:
+        #     machine_status = (machine.avail_mem//1000000,
+        #                       machine.avail_cpus,
+        #                       machine.avail_gpus,
+        #                       len(machine.running_jobs))
+        #     obs.append(machine_status)
+
+        # obs_tuple = tuple(obs)
+
+        #return obs_tuple
     
     def reset(self, seed=None, options=None):
         """
@@ -111,19 +147,24 @@ class HPCEnv(gym.Env):
         info (dictionary) - This dictionary contains auxiliary information complementing observation.
         It should be analogous to the info returned by step().
         """
-        try:
-            machines_csv_name = options["machines_csv"]
-        except KeyError as e:
-            raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
-        except TypeError as e:
-            raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
-        try:
-            jobs_csv_name = options["jobs_csv"]
-        except KeyError as e:
-            raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
-        except TypeError as e:
-            raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
+        # try:
+        #     machines_csv_name = options["machines_csv"]
+        # except KeyError as e:
+        #     raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
+        # except TypeError as e:
+        #     raise KeyError("The reset method requires options[\"machines_csv\"] to be set to the csv containing the machines")
+        # try:
+        #     jobs_csv_name = options["jobs_csv"]
+        # except KeyError as e:
+        #     raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
+        # except TypeError as e:
+        #     raise KeyError("The reset method requires options[\"jobs_csv\"] to be set to the csv containing the machines")
             
+        
+        # Unsure how to pass these in, so hard coding for the moment
+        machines_csv_name = "machines.csv"
+        jobs_csv_name = "jobs.csv"
+
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
         if self.render_mode == "human":

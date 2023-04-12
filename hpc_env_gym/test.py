@@ -33,25 +33,30 @@ def get_bbf_node_to_schedule(sched, dummy_job):
     node_index, node = sched.get_best_bin_first_machine(dummy_job)
     return node_index
 
-
-for i in range(10000):
-    print("Step #{}".format(i))
-    
+for i in range(4):
     node_to_sched = random.randint(0,7)
-    node_to_sched = get_bbf_node_to_schedule(env.scheduler, dummy_job)
-    
     observation, reward, terminated, truncated, info = env.step(node_to_sched)
 
-    print("observation is: ")
-    pprint(observation)
-    print("="*60)
     
-    # Toggle visualization by commenting this out
-    env.render()
-    
-    dummy_job = update_dummy_job(observation)
 
-    if terminated or truncated:
-        print(f"Terminated is {terminated}")
-        print(f"truncated is {truncated}")
-        break
+# for i in range(10000):
+#     print("Step #{}".format(i))
+    
+#     node_to_sched = random.randint(0,7)
+#     node_to_sched = get_bbf_node_to_schedule(env.scheduler, dummy_job)
+    
+#     observation, reward, terminated, truncated, info = env.step(node_to_sched)
+
+#     print("observation is: ")
+#     pprint(observation)
+#     print("="*60)
+    
+#     # Toggle visualization by commenting this out
+#     env.render()
+    
+#     dummy_job = update_dummy_job(observation)
+
+#     if terminated or truncated:
+#         print(f"Terminated is {terminated}")
+#         print(f"truncated is {truncated}")
+#         break
