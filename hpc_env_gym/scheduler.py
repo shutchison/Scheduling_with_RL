@@ -32,28 +32,31 @@ class Scheduler():
         self.job_queue.append(job)
     
     def load_cluster(self, csv_file_name):
-        if len(self.cluster.machines) == 0:
-            self.cluster.load_machines(csv_file_name)
+        self.cluster.machines = []
+        self.cluster.load_machines(csv_file_name)
 
     def bbf(self, job):
         return self.cluster.best_bin_first(job, self.global_clock)
     
     def load_jobs(self, csv_file_name):
-        system_jobs = len(self.future_jobs.queue) + len(self.job_queue) + len(self.running_jobs.queue) + len(self.completed_jobs)
-        if system_jobs == 0:
-            f = open(csv_file_name)
-            lines = f.readlines()
-            f.close()
-            lines = list(map(str.strip, lines))
-            # print(lines)
-            headers = lines[0]
-            for line in lines[1:]:
-                elements = line.split(",")
-                j = Job(elements[0], *map(int, elements[1:]))
-                # wrap this in a tuple, so they are ordered by their sumbission time.
-                self.future_jobs.put( (j.submission_time, j) )
-            # initialize global clock to be the submission time of the first job
-            self.global_clock = self.future_jobs.queue[0][0]
+        self.future_jobs = queue.PriorityQueue()  # ordered based on submit time
+        self.job_queue = []
+        self.running_jobs = queue.PriorityQueue() # ordered based on end time
+        self.completed_jobs = []
+        
+        f = open(csv_file_name)
+        lines = f.readlines()
+        f.close()
+        lines = list(map(str.strip, lines))
+        # print(lines)
+        headers = lines[0]
+        for line in lines[1:]:
+            elements = line.split(",")
+            j = Job(elements[0], *map(int, elements[1:]))
+            # wrap this in a tuple, so they are ordered by their sumbission time.
+            self.future_jobs.put( (j.submission_time, j) )
+        # initialize global clock to be the submission time of the first job
+        self.global_clock = self.future_jobs.queue[0][0]
         
     def get_schedulable_jobs(self):
         schedulable_jobs = []

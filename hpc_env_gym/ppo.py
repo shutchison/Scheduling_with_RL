@@ -226,12 +226,12 @@ if __name__ == "__main__":
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
 
             #print(f"info here is {info}")
-            #for item in info: #don't need to iterate trhough if I'm only doing one
-                # if "episode" in item.keys():
-                #     print(f"global_step={global_step}, episodic_return={item['episode']['r']}")
-                #     writer.add_scalar("charts/episodic_return", item["episode"]["r"], global_step)
-                #     writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
-                #     break
+            # for item in info: #don't need to iterate trhough if I'm only doing one
+            #     if "episode" in item.keys():
+            #         print(f"global_step={global_step}, episodic_return={item['episode']['r']}")
+            #         writer.add_scalar("charts/episodic_return", item["episode"]["r"], global_step)
+            #         writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
+            #         break
             if "episode" in info.keys():
                 print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
                 writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)

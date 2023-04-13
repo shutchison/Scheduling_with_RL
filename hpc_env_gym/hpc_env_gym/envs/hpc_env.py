@@ -173,7 +173,7 @@ class HPCEnv(gym.Env):
         
         # Unsure how to pass these in, so hard coding for the moment
         machines_csv_name = "machines.csv"
-        jobs_csv_name = r"C:\Projects\Scheduling_with_RL\hpc_env_gym\200_jobs.csv"
+        jobs_csv_name = "200_jobs.csv"
 
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
@@ -246,7 +246,7 @@ class HPCEnv(gym.Env):
             terminated = self.scheduler.tick()
 
         observation = self._get_obs()
-        info = {}
+        info = {} #populate with episode and avg job queue time.
 
         print(f"Rewarded with {reward}")
         print(self.scheduler.summary_statistics())
