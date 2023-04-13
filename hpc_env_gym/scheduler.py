@@ -32,25 +32,28 @@ class Scheduler():
         self.job_queue.append(job)
     
     def load_cluster(self, csv_file_name):
-        self.cluster.load_machines(csv_file_name)
+        if len(self.cluster.machines) == 0:
+            self.cluster.load_machines(csv_file_name)
 
     def bbf(self, job):
         return self.cluster.best_bin_first(job, self.global_clock)
     
     def load_jobs(self, csv_file_name):
-        f = open(csv_file_name)
-        lines = f.readlines()
-        f.close()
-        lines = list(map(str.strip, lines))
-        # print(lines)
-        headers = lines[0]
-        for line in lines[1:]:
-            elements = line.split(",")
-            j = Job(elements[0], *map(int, elements[1:]))
-            # wrap this in a tuple, so they are ordered by their sumbission time.
-            self.future_jobs.put( (j.submission_time, j) )
-        # initialize global clock to be the submission time of the first job
-        self.global_clock = self.future_jobs.queue[0][0]
+        system_jobs = len(self.future_jobs.queue) + len(self.job_queue) + len(self.running_jobs.queue) + len(self.completed_jobs)
+        if system_jobs == 0:
+            f = open(csv_file_name)
+            lines = f.readlines()
+            f.close()
+            lines = list(map(str.strip, lines))
+            # print(lines)
+            headers = lines[0]
+            for line in lines[1:]:
+                elements = line.split(",")
+                j = Job(elements[0], *map(int, elements[1:]))
+                # wrap this in a tuple, so they are ordered by their sumbission time.
+                self.future_jobs.put( (j.submission_time, j) )
+            # initialize global clock to be the submission time of the first job
+            self.global_clock = self.future_jobs.queue[0][0]
         
     def get_schedulable_jobs(self):
         schedulable_jobs = []
@@ -168,23 +171,27 @@ class Scheduler():
             if not self.running_jobs.empty(): 
                 next_job_end_time = self.running_jobs.queue[0][0]
 
-            if self.global_clock <= 1e99:
-                self.global_clock = min([next_job_submit_time, next_job_end_time])
-                #print("Updating global clock to {:,}".format(self.global_clock))
+            if self.future_jobs.empty() and self.running_jobs.empty():
+                if self.jobs_can_be_scheduled():
+                    return False
+                else:
+                    # Equivalent state to self.simulation_is_complete()
+                    return True
             else:
-                print(f"global clock has gone to {self.global_clock}.  Truncating.")
-                return True
+                self.global_clock = min([next_job_submit_time, next_job_end_time])
+                print("Updating global clock to {:,}".format(self.global_clock))
 
-            if self.global_clock == next_job_submit_time: 
-                self.tick_queue_jobs()
-            if self.global_clock == next_job_end_time: 
-                self.tick_end_jobs()
+                if self.global_clock == next_job_submit_time: 
+                    self.tick_queue_jobs()
+                
+                if self.global_clock == next_job_end_time: 
+                    self.tick_end_jobs()
+                
+                if self.jobs_can_be_scheduled():
+                    advancing_time = False
             
-            if self.jobs_can_be_scheduled():
-                advancing_time = False
-        
-        if self.simulation_is_complete():
-            return True
+                if self.simulation_is_complete():
+                    return True
 
         return False
 
@@ -228,15 +235,15 @@ class Scheduler():
     def simulation_is_complete(self):
         # returns True if there is nothing left to do.
         # False otherwise
+        #print("checking sim complete")
+        #print("future is empty: {}\trunning is empty: {}\tcan sched: {}".format(self.future_jobs.empty(), self.running_jobs.empty(), self.jobs_can_be_scheduled()))
         sim_complete = False
         if self.future_jobs.empty() and self.running_jobs.empty() and not self.jobs_can_be_scheduled():
             print("No future jobs, no running jobs, and no more jobs I can schedule!  Nothing left to do.")
-            print(self.summary_statistics())
             sim_complete = True
             
         if self.global_clock == 1e100:
             print("Global clock has gone to infinity.  Something went wrong or we're done?")
-            print(self.summary_statistics())
             sim_complete = True
         
         return sim_complete

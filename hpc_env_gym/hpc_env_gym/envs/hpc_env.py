@@ -83,25 +83,35 @@ class HPCEnv(gym.Env):
         pass
     
     def _get_obs(self):
-        machines = []
-        machines = [[machine.avail_mem//1000000,
-                     machine.avail_cpus,
-                     machine.avail_gpus] for machine in self.scheduler.cluster.machines]
-        flat_machines = [item for sublist in machines for item in sublist]
+        #machines = []
+        #machines = [[machine.avail_mem//1000000,
+        #             machine.avail_cpus,
+        #             machine.avail_gpus] for machine in self.scheduler.cluster.machines]
+        #flat_machines = [item for sublist in machines for item in sublist]
         
-        next_job = self.scheduler.peek_shortest_schedulable_job()
-        obs = []
-        if next_job != None:
-            obs = [next_job.req_mem//1000000, #convert to gb
-                        next_job.req_cpus,
-                        next_job.req_gpus,
-                        next_job.req_duration//3600 #convert to hours
-                        ] + flat_machines
-        else:
-            obs = [0,0,0,0] + flat_machines
-        
-        obs_array = np.array(obs, dtype=np.float32)
+        flat_machines = []
+        for machine in self.scheduler.cluster.machines:
+            flat_machines.append(machine.avail_mem//1000000)
+            flat_machines.append(machine.avail_cpus)
+            flat_machines.append(machine.avail_gpus)
 
+        next_job = self.scheduler.peek_shortest_schedulable_job()
+        job = []
+        if next_job is not None:
+            job = [next_job.req_mem//1000000, #convert to gb
+                    next_job.req_cpus,
+                    next_job.req_gpus,
+                    next_job.req_duration//3600 #convert to hours
+                    ]
+        else:
+            job = [0,0,0,0]
+        
+        obs = job + flat_machines
+
+        obs_array = np.array(obs, dtype=np.float32)
+        
+        #print(f"_get_obs machines: {flat_machines}")
+        #print(f"_get_obs job: {job}")
         #print(f"_get_obs is returning: {obs_array}\n{obs_array.shape}")
 
         return obs_array
@@ -163,7 +173,7 @@ class HPCEnv(gym.Env):
         
         # Unsure how to pass these in, so hard coding for the moment
         machines_csv_name = "machines.csv"
-        jobs_csv_name = "200_jobs.csv"
+        jobs_csv_name = r"C:\Projects\Scheduling_with_RL\hpc_env_gym\200_jobs.csv"
 
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
@@ -172,7 +182,7 @@ class HPCEnv(gym.Env):
             arg_dict["all_jobs"] = self.scheduler.future_jobs
             arg_dict["all_machines"] = self.scheduler.cluster.machines
             self.renderer = HPCEnvRenderer(self.render_mode, arg_dict)
-            
+        
         obs = self._get_obs()
         #print("obs is of type {}:".format(type(obs)))
         #pprint(obs)
@@ -233,7 +243,8 @@ class HPCEnv(gym.Env):
                     self.scheduler.job_queue.append(job)
                     reward = -1
             
-        truncated = self.scheduler.tick()
+            terminated = self.scheduler.tick()
+
         observation = self._get_obs()
         info = {}
 
