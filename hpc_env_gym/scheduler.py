@@ -30,7 +30,7 @@ class Scheduler():
         self.global_clock, job = self.future_jobs.get()
         self.clock_offset = self.global_clock
         self.job_queue.append(job)
-    
+
     def load_cluster(self, csv_file_name):
         self.cluster.machines = []
         self.cluster.load_machines(csv_file_name)
@@ -182,7 +182,7 @@ class Scheduler():
                     return True
             else:
                 self.global_clock = min([next_job_submit_time, next_job_end_time])
-                print("Updating global clock to {:,}".format(self.global_clock))
+                # print("Updating global clock to {:,}".format(self.global_clock))
 
                 if self.global_clock == next_job_submit_time: 
                     self.tick_queue_jobs()
@@ -242,7 +242,7 @@ class Scheduler():
         #print("future is empty: {}\trunning is empty: {}\tcan sched: {}".format(self.future_jobs.empty(), self.running_jobs.empty(), self.jobs_can_be_scheduled()))
         sim_complete = False
         if self.future_jobs.empty() and self.running_jobs.empty() and not self.jobs_can_be_scheduled():
-            print("No future jobs, no running jobs, and no more jobs I can schedule!  Nothing left to do.")
+            #print("No future jobs, no running jobs, and no more jobs I can schedule!  Nothing left to do.")
             sim_complete = True
             
         if self.global_clock == 1e100:
@@ -271,6 +271,15 @@ class Scheduler():
         self.cluster.machines[machine_index].start_job(job)
         self.running_jobs.put( (job.end_time, job) )
         
+    def get_avg_job_queue_time(self):
+        num_completed = len(self.completed_jobs)
+        queue_times = [(job.start_time - job.submission_time) for job in self.completed_jobs]
+        if num_completed == 0:
+            return 1e100
+        else:
+            avg_queue_time = sum(queue_times)/num_completed
+            return avg_queue_time
+    
     def __repr__(self):
         s = "Scheduler("
         for key, value in self.__dict__.items():

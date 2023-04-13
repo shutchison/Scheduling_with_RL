@@ -217,7 +217,7 @@ class HPCEnv(gym.Env):
         
         # The action is the index of the machine on which to start this job
         #print("Action: {}".format(action))
-        print("RL Agent attempting to schedule to {}".format(self.scheduler.cluster.machines[action].node_name))
+        # print("RL Agent attempting to schedule to {}".format(self.scheduler.cluster.machines[action].node_name))
 
         truncated = False
         terminated = self.scheduler.simulation_is_complete()
@@ -246,10 +246,18 @@ class HPCEnv(gym.Env):
             terminated = self.scheduler.tick()
 
         observation = self._get_obs()
-        info = {} #populate with episode and avg job queue time.
+        info = {} 
 
-        print(f"Rewarded with {reward}")
-        print(self.scheduler.summary_statistics())
+        if terminated or truncated:
+            metric = round(self.scheduler.get_avg_job_queue_time(),2)
+            print(f"Avg job queue time for this run was {metric:,}")
+        #populate with episode and avg job queue time when simulation terminates
+        # if terminated or truncated:
+        #     info["episode"] = {}
+        #     info["episode"]["r"] = self.scheduler.get_avg_job_queue_time()
+        #     info["episode"]["l"] = self.scheduler.global_clock - self.scheduler.clock_offset
+        # print(f"Rewarded with {reward}")
+        # print(self.scheduler.summary_statistics())
         return observation, reward, terminated, truncated, info
         
     def close(self):

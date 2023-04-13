@@ -225,17 +225,23 @@ if __name__ == "__main__":
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
 
-            #print(f"info here is {info}")
+            # print(f"info here is {info}")
             # for item in info: #don't need to iterate trhough if I'm only doing one
             #     if "episode" in item.keys():
             #         print(f"global_step={global_step}, episodic_return={item['episode']['r']}")
             #         writer.add_scalar("charts/episodic_return", item["episode"]["r"], global_step)
             #         writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
             #         break
-            if "episode" in info.keys():
-                print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+            if info != {}:
+                if "final_info" in info.keys():
+                    episode = info["final_info"][0]["episode"]
+                    print(f"global_step={global_step}, episodic_return={episode['r']}")
+                    writer.add_scalar("charts/episodic_return", episode["r"], global_step)
+                    writer.add_scalar("charts/episodic_length", episode["l"], global_step)    
+            # if "episode" in info.keys():
+            #     print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+            #     writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
+            #     writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
                 #break
         # bootstrap value if not done
         with torch.no_grad():
