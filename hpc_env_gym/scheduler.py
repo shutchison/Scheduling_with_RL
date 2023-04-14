@@ -12,6 +12,7 @@ class Scheduler():
         self.cluster = Cluster()
         self.global_clock = 0
         self.clock_offset = 0
+        self.use_oracle = False
 
         #initialize self.future_jobs with all jobs we need to run
         self.future_jobs = queue.PriorityQueue()  # ordered based on submit time
@@ -80,7 +81,10 @@ class Scheduler():
         if len(schedulable_jobs) <= 0:
             return None, None
         else:
-            shortest_job = sorted(schedulable_jobs, key=lambda x: x.req_duration)[0]
+            if self.use_oracle:
+                shortest_job = sorted(schedulable_jobs, key=lambda x: x.actual_duration)[0]
+            else:
+                shortest_job = sorted(schedulable_jobs, key=lambda x: x.req_duration)[0]
             for index, job in enumerate(self.job_queue):
                 if job == shortest_job:
                     return index, job
@@ -137,6 +141,13 @@ class Scheduler():
                     assigned_machine_index = machine_index
                     
         return (assigned_machine_index, assigned_machine)
+
+    def get_first_available_machine(self, job):
+        assigned_machine = None
+        assigned_machine_index = None
+        for machine_index, m in enumerate(self.cluster.machines):
+            if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
+                return (machine_index, m)
 
     def tick(self):
         # tick will advance time until at least one job can be scheduled or ended,

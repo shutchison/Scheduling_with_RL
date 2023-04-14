@@ -22,41 +22,53 @@ dummy_job = Job("job",
 
 def update_dummy_job(obs):
     return Job("job",
-                obs[0][0]*1000000,
-                obs[0][1],
-                obs[0][2],
-                obs[0][3]*3600,
+                obs[0]*1000000,
+                obs[1],
+                obs[2],
+                obs[3]*3600,
                 0,
                 0)
 
-def get_bbf_node_to_schedule(sched, dummy_job):
-    node_index, node = sched.get_best_bin_first_machine(dummy_job)
-    return node_index
+# Really sketchy enum
+RANDOM = 1
+BEST_BIN_FIRST = 2
+ORACLE = 3 # Shortest Job Next based on actual duration
 
-for i in range(4):
-    node_to_sched = random.randint(0,7)
+DECISION_MODE = ORACLE
+decision_name = ""
+
+for i in range(10000):
+    print("Step #{}".format(i))
+   
+    if DECISION_MODE == RANDOM:
+        node_to_sched = random.randint(0,7)
+        decision_name = "Random"
+    elif DECISION_MODE == BEST_BIN_FIRST:
+        node_to_sched, node = env.scheduler.get_best_bin_first_machine(dummy_job)
+        decision_name = "Best Bin First"
+    elif DECISION_MODE == ORACLE:
+        env.scheduler.use_oracle = True
+        node_to_sched, node = env.scheduler.get_first_available_machine(dummy_job)
+        decision_name = "Oracle"
+    else:
+        node_to_sched = random.randint(0,7)
+   
     observation, reward, terminated, truncated, info = env.step(node_to_sched)
 
-    
+    print("observation is: ")
+    pprint(observation)
+    print("="*60)
+   
+    # Toggle visualization by commenting this out
+    #env.render()
+   
+    dummy_job = update_dummy_job(observation)
+    if terminated or truncated:
+        print(f"Terminated is {terminated}")
+        print(f"truncated is {truncated}")
+        break
 
-# for i in range(10000):
-#     print("Step #{}".format(i))
-    
-#     node_to_sched = random.randint(0,7)
-#     node_to_sched = get_bbf_node_to_schedule(env.scheduler, dummy_job)
-    
-#     observation, reward, terminated, truncated, info = env.step(node_to_sched)
+average_queue_time = env.scheduler.get_avg_job_queue_time()
 
-#     print("observation is: ")
-#     pprint(observation)
-#     print("="*60)
-    
-#     # Toggle visualization by commenting this out
-#     env.render()
-    
-#     dummy_job = update_dummy_job(observation)
-
-#     if terminated or truncated:
-#         print(f"Terminated is {terminated}")
-#         print(f"truncated is {truncated}")
-#         break
+print("Decision method: {}".format(decision_name))
+print("Average Queue Time: {} hours".format(round(average_queue_time/3600,2)))
