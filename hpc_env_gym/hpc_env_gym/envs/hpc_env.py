@@ -173,8 +173,8 @@ class HPCEnv(gym.Env):
         
         # Unsure how to pass these in, so hard coding for the moment
         machines_csv_name = "machines.csv"
-        jobs_csv_name = "200_jobs.csv"
-
+        jobs_csv_name = "jobs.csv"
+        
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
         if self.render_mode == "human":
@@ -188,6 +188,9 @@ class HPCEnv(gym.Env):
         #pprint(obs)
         info = {}
         #self.job_assignments = []
+
+        #print("reset returning:")
+        pprint((obs, info))
 
         return obs, info
     
@@ -235,13 +238,13 @@ class HPCEnv(gym.Env):
                 if proposed_machine.can_schedule(job):
                     self.scheduler.run_job(job, proposed_machine_index)
                     if proposed_machine_index == best_machine_index:
-                        reward = 1
+                        reward = 2
                     else:
-                        reward = 0
+                        reward = 1
                 else:
                     #print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
                     self.scheduler.job_queue.append(job)
-                    reward = -1
+                    reward = 0
             
             terminated = self.scheduler.tick()
 

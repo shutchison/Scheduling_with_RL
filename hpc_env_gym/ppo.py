@@ -195,8 +195,11 @@ if __name__ == "__main__":
     global_step = 0
     start_time = time.time()
 
-    obser, info = envs.reset()
-    next_obs = torch.Tensor(obser).to(device)
+    # works when --num-env=1
+    #obser, info = envs.reset()
+    #next_obs = torch.Tensor(obser).to(device)
+    obsers, infos = envs.reset()
+    next_obs = torch.Tensor(obsers).to(device)
 
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.batch_size
@@ -225,7 +228,6 @@ if __name__ == "__main__":
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
 
-            # print(f"info here is {info}")
             # for item in info: #don't need to iterate trhough if I'm only doing one
             #     if "episode" in item.keys():
             #         print(f"global_step={global_step}, episodic_return={item['episode']['r']}")
@@ -233,11 +235,15 @@ if __name__ == "__main__":
             #         writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
             #         break
             if info != {}:
+                print(f"info here is {info}")
                 if "final_info" in info.keys():
-                    episode = info["final_info"][0]["episode"]
-                    print(f"global_step={global_step}, episodic_return={episode['r']}")
-                    writer.add_scalar("charts/episodic_return", episode["r"], global_step)
-                    writer.add_scalar("charts/episodic_length", episode["l"], global_step)    
+                    episodes = info["final_info"]
+                    for episode in episodes:
+                        if episode != None:
+                            current_episode = episode["episode"]
+                            print(f"global_step={global_step}, episodic_return={current_episode['r']}")
+                            writer.add_scalar("charts/episodic_return", current_episode["r"], global_step)
+                            writer.add_scalar("charts/episodic_length", current_episode["l"], global_step)    
             # if "episode" in info.keys():
             #     print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
             #     writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
