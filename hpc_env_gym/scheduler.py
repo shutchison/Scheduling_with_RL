@@ -20,6 +20,9 @@ class Scheduler():
         self.running_jobs = queue.PriorityQueue() # ordered based on end time
         self.completed_jobs = []
         self.schedulable_jobs = []
+
+        self.machines_file = ""
+        self.jobs_file = ""
     
     def reset(self, machines_csv, jobs_csv):
         """
@@ -33,6 +36,7 @@ class Scheduler():
         self.job_queue.append(job)
 
     def load_cluster(self, csv_file_name):
+        self.machines_file = csv_file_name
         self.cluster.machines = []
         self.cluster.load_machines(csv_file_name)
 
@@ -40,6 +44,7 @@ class Scheduler():
         return self.cluster.best_bin_first(job, self.global_clock)
     
     def load_jobs(self, csv_file_name):
+        self.jobs_file = csv_file_name
         self.future_jobs = queue.PriorityQueue()  # ordered based on submit time
         self.job_queue = []
         self.running_jobs = queue.PriorityQueue() # ordered based on end time

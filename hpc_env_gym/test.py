@@ -8,7 +8,7 @@ from job import Job
 env = gym.make("HPCEnv-v0", render_mode="human")
 
 options = {"machines_csv" : "machines.csv",
-           "jobs_csv" : "200_jobs.csv"}
+           "jobs_csv" : "jobs.csv"}
 
 env.reset(options=options)
 
@@ -31,8 +31,9 @@ def update_dummy_job(obs):
 
 # Really sketchy enum
 RANDOM = 1
-BEST_BIN_FIRST = 2
+BBF = 2
 ORACLE = 3 # Shortest Job Next based on actual duration
+SJN = 4 # Shortest Job Next based on requested duration
 
 DECISION_MODE = ORACLE
 decision_name = ""
@@ -43,13 +44,16 @@ for i in range(10000):
     if DECISION_MODE == RANDOM:
         node_to_sched = random.randint(0,7)
         decision_name = "Random"
-    elif DECISION_MODE == BEST_BIN_FIRST:
+    elif DECISION_MODE == BBF:
         node_to_sched, node = env.scheduler.get_best_bin_first_machine(dummy_job)
         decision_name = "Best Bin First"
     elif DECISION_MODE == ORACLE:
         env.scheduler.use_oracle = True
         node_to_sched, node = env.scheduler.get_first_available_machine(dummy_job)
         decision_name = "Oracle"
+    elif DECISION_MODE == SJN:
+        node_to_sched, node = env.scheduler.get_first_available_machine(dummy_job)
+        decision_name = "Shortest Job Next"
     else:
         node_to_sched = random.randint(0,7)
    
@@ -70,5 +74,7 @@ for i in range(10000):
 
 average_queue_time = env.scheduler.get_avg_job_queue_time()
 
+print("Machines File: {}".format(env.scheduler.machines_file))
+print("Jobs File: {}".format(env.scheduler.jobs_file))
 print("Decision method: {}".format(decision_name))
 print("Average Queue Time: {} hours".format(round(average_queue_time/3600,2)))
