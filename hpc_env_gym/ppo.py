@@ -138,12 +138,18 @@ if __name__ == "__main__":
         entry_point='hpc_env_gym.envs.hpc_env:HPCEnv'
     )
 
+    CHECKPOINT_FREQUENCY = 50
+    starting_update = 1
+
     args = parse_args()
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+
+    num_updates = args.total_timesteps // args.batch_size
+
     if args.track:
         import wandb
     
-        wandb.init(
+        run = wandb.init(
             project=args.wandb_project_name,
             entity=args.wandb_entity,
             sync_tensorboard=True,
@@ -152,6 +158,7 @@ if __name__ == "__main__":
             monitor_gym=True,
             save_code=True,
         )
+    
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
         "hyperparameters",
@@ -182,6 +189,18 @@ if __name__ == "__main__":
     # print()
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
+
+    if args.track and wandb.run.resumed:
+        starting_update = run.summary.get("charts/update") + 1
+        global_step = starting_update * args.batch_size
+        api = wandb.Api()
+        run = api.run(f"{run.entity}/{run.project}/{run.id}")
+        model = run.file("agent.pt")
+        model.download(f"models/{run_name}/")
+        agent.load_state_dict(torch.load(
+            f"models/{run_name}/agent.pt", map_location=device))
+        agent.eval()
+        print(f"resumed at update {starting_update}")
 
     # ALGO Logic: Storage setup
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
@@ -343,6 +362,13 @@ if __name__ == "__main__":
         writer.add_scalar("losses/explained_variance", explained_var, global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+
+        if args.track:
+            # make sure to tune `CHECKPOINT_FREQUENCY` 
+            # so models are not saved too frequently
+            if update % CHECKPOINT_FREQUENCY == 0:
+                torch.save(agent.state_dict(), f"{wandb.run.dir}/agent.pt")
+                wandb.save(f"{wandb.run.dir}/agent.pt", policy="now")
 
     envs.close()
     writer.close()
