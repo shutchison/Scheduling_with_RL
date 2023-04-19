@@ -8,8 +8,8 @@ import torch
 # ===========================================
 #             Init the environment
 # ===========================================
-options = {"machines_csv" : "machines.csv",
-           "jobs_csv" : "jobs.csv"}
+options = {}
+
 env = gym.make("HPCEnv-v0", render_mode="human")
 env.reset(options=options)
 

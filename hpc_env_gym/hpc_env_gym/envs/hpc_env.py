@@ -17,6 +17,10 @@ MAX_TIME = 673 # number of hours which is the longest job
 NUM_MACHINES_IN_CLUSTER = 8 # how many machines are in the cluster?
 MAX_RUNNING_JOBS = 100 # the most jobs on a machine at any time
 
+# Unsure how to pass these in, so hard coding for the moment
+machines_csv_name = "more_machines.csv"
+jobs_csv_name = "packed_7_all_jobs_202101.csv"
+
 # extending the OpenAI Gym environment
 # https://www.gymlibrary.dev/api/core/
 
@@ -27,7 +31,12 @@ class HPCEnv(gym.Env):
         self.render_mode = render_mode
         #self.cluster = Cluster()
         self.scheduler = Scheduler()
+
+        self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
+        self.get_machine_parameters()
+        self.get_job_parameters()
+
         # Define the observation space as a dictionary which represents
         # the state of the job queue and the state of the machines in the HPC.
         # observation scace is the next job to be scheudled and all machines
@@ -147,10 +156,6 @@ class HPCEnv(gym.Env):
         info (dictionary) - This dictionary contains auxiliary information complementing observation.
         It should be analogous to the info returned by step().
         """
-
-        # Unsure how to pass these in, so hard coding for the moment
-        machines_csv_name = "machines.csv"
-        jobs_csv_name = "jobs.csv"
 
         self.scheduler.reset(machines_csv_name, jobs_csv_name)
         
