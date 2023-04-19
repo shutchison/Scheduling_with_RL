@@ -6,6 +6,7 @@ from datetime import datetime
 import csv
 import logging
 from cluster import Cluster
+import numpy as np
 
 class Scheduler():
     def __init__(self) -> None: # what scheduling method to use
@@ -39,6 +40,42 @@ class Scheduler():
         self.machines_file = csv_file_name
         self.cluster.machines = []
         self.cluster.load_machines(csv_file_name)
+
+    def _get_obs(self):
+        # I'm pretty sure this way works just as well the one right after it, but we have the system
+        # working now and I don't want to touch it
+        #machines = []
+        #machines = [[machine.avail_mem//1000000,
+        #             machine.avail_cpus,
+        #             machine.avail_gpus] for machine in self.scheduler.cluster.machines]
+        #flat_machines = [item for sublist in machines for item in sublist]
+        
+        flat_machines = []
+        for machine in self.cluster.machines:
+            flat_machines.append(machine.avail_mem//1000000)
+            flat_machines.append(machine.avail_cpus)
+            flat_machines.append(machine.avail_gpus)
+
+        next_job = self.peek_shortest_schedulable_job()
+        job = []
+        if next_job is not None:
+            job = [next_job.req_mem//1000000, #convert to gb
+                    next_job.req_cpus,
+                    next_job.req_gpus,
+                    next_job.req_duration//3600 #convert to hours
+                    ]
+        else:
+            job = [0,0,0,0]
+        
+        obs = job + flat_machines
+
+        obs_array = np.array(obs, dtype=np.float32)
+        
+        #print(f"_get_obs machines: {flat_machines}")
+        #print(f"_get_obs job: {job}")
+        #print(f"_get_obs is returning: {obs_array}\n{obs_array.shape}")
+
+        return obs_array
 
     def bbf(self, job):
         return self.cluster.best_bin_first(job, self.global_clock)

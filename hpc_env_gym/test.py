@@ -2,16 +2,20 @@ import hpc_env_gym.envs.hpc_env
 import gym
 from pprint import pprint
 import random
-from time import sleep
 from job import Job
+import torch
 
-env = gym.make("HPCEnv-v0", render_mode="human")
-
+# ===========================================
+#             Init the environment
+# ===========================================
 options = {"machines_csv" : "machines.csv",
            "jobs_csv" : "jobs.csv"}
-
+env = gym.make("HPCEnv-v0", render_mode="human")
 env.reset(options=options)
 
+# ===========================================
+#        Init input to decision models
+# ===========================================
 dummy_job = Job("job",
                 env.scheduler.job_queue[0].req_mem,
                 env.scheduler.job_queue[0].req_cpus,
@@ -20,27 +24,35 @@ dummy_job = Job("job",
                 0,
                 0)
 
-def update_dummy_job(obs):
-    return Job("job",
-                obs[0]*1000000,
-                obs[1],
-                obs[2],
-                obs[3]*3600,
-                0,
-                0)
+observation = env.scheduler._get_obs()
 
+# ===========================================
+#               Init RL model
+# ===========================================
+model_file = r"C:\Projects\Scheduling_with_RL_models\actor.pt"
+
+agent = torch.load(model_file, map_location=torch.device("cpu"))
+
+
+# ===========================================
+#         Init decision model options
+# ===========================================
 # Really sketchy enum
 RANDOM = 1
 BBF = 2
 ORACLE = 3 # Shortest Job Next based on actual duration
 SJN = 4 # Shortest Job Next based on requested duration
-
-DECISION_MODE = ORACLE
+PPO = 5
 decision_name = ""
+
+DECISION_MODE = PPO
 
 for i in range(10000):
     print("Step #{}".format(i))
-   
+    print("observation is: ")
+    pprint(observation)
+    print("="*60)
+
     if DECISION_MODE == RANDOM:
         node_to_sched = random.randint(0,7)
         decision_name = "Random"
@@ -54,19 +66,28 @@ for i in range(10000):
     elif DECISION_MODE == SJN:
         node_to_sched, node = env.scheduler.get_first_available_machine(dummy_job)
         decision_name = "Shortest Job Next"
+    elif DECISION_MODE == PPO:
+        node_to_sched = agent(torch.tensor(observation)).argmax().item()
+        decision_name = "PPO Agent"
     else:
-        node_to_sched = random.randint(0,7)
-   
+        print("Unknown decision mode")
+        break
+    
+    print(f"{decision_name} decision is: {node_to_sched}")
+    
     observation, reward, terminated, truncated, info = env.step(node_to_sched)
 
-    print("observation is: ")
-    pprint(observation)
-    print("="*60)
-   
     # Toggle visualization by commenting this out
-    #env.render()
+    env.render()
    
-    dummy_job = update_dummy_job(observation)
+    dummy_job = Job("job",
+                    observation[0]*1000000,
+                    observation[1],
+                    observation[2],
+                    observation[3]*3600,
+                    0,
+                    0)
+
     if terminated or truncated:
         print(f"Terminated is {terminated}")
         print(f"truncated is {truncated}")
