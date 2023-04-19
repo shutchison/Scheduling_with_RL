@@ -367,6 +367,7 @@ if __name__ == "__main__":
             # make sure to tune `CHECKPOINT_FREQUENCY` 
             # so models are not saved too frequently
             if update % CHECKPOINT_FREQUENCY == 0:
+                torch.save(agent.actor, f"{wandb.run.dir}/actor.pt")
                 torch.save(agent.state_dict(), f"{wandb.run.dir}/agent.pt")
                 wandb.save(f"{wandb.run.dir}/agent.pt", policy="now")
 
