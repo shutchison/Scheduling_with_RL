@@ -17,9 +17,11 @@ MAX_TIME = 673 # number of hours which is the longest job
 NUM_MACHINES_IN_CLUSTER = 8 # how many machines are in the cluster?
 MAX_RUNNING_JOBS = 100 # the most jobs on a machine at any time
 
+step_counter = 0
+steps_between_prints = 10000
 # Unsure how to pass these in, so hard coding for the moment
 machines_csv_name = "more_machines.csv"
-jobs_csv_name = "packed_7_all_jobs_202101.csv"
+jobs_csv_name = "5000_jobs.csv"
 
 # extending the OpenAI Gym environment
 # https://www.gymlibrary.dev/api/core/
@@ -28,6 +30,7 @@ class HPCEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1}
     
     def __init__(self, render_mode=None):
+        print(f"using {machines_csv_name} and {jobs_csv_name}")
         self.render_mode = render_mode
         #self.cluster = Cluster()
         self.scheduler = Scheduler()
@@ -246,6 +249,11 @@ class HPCEnv(gym.Env):
         #     info["episode"]["l"] = self.scheduler.global_clock - self.scheduler.clock_offset
         # print(f"Rewarded with {reward}")
         # print(self.scheduler.summary_statistics())
+        global step_counter
+        step_counter += 1
+        if step_counter % steps_between_prints == 0:
+            print(f"Step {step_counter}:")
+            print(self.scheduler.summary_statistics())
         return observation, reward, terminated, truncated, info
         
     def close(self):
