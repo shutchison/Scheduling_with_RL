@@ -216,19 +216,11 @@ class Scheduler():
                 else:
                     fill_margin = (mem_margin + cpu_margin + gpu_margin)/n_attributes
                 
-                machine_rankings.append( [machine_index, fill_margin, 0] )
+                machine_rankings.append( (machine_index, fill_margin) )
             else:
-                machine_rankings.append( [machine_index, -1, -1] )
+                machine_rankings.append( (machine_index, -1) )
 
         machine_rankings = sorted(machine_rankings, key=lambda x: x[1])
-        reward = len(self.cluster.machines)
-        for m in machine_rankings:
-            if m[2] == 0:
-                m[2] = reward
-            else:
-                break
-            reward = reward - 1
-
         return machine_rankings
 
     def get_first_available_machine(self, job):
