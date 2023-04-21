@@ -265,14 +265,17 @@ class HPCEnv(gym.Env):
         rankings = self.scheduler.get_best_bin_first_machine_ranking(job)
         current_margin = rankings[0][1]
         reward = len(rankings)
+        ctr = 0
         for rank in rankings:
             if rank[1] != current_margin:
-                reward = reward - 1
+                reward = reward - ctr
                 current_margin = rank[1]
+                ctr = 0
             if proposed_machine_index == rank[0]:
                 if rank[1] == -1:
                     reward = -1
                 break
+            ctr = ctr + 1
         if reward < 0:
             #print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
             self.scheduler.job_queue.append(job)
