@@ -223,16 +223,8 @@ class HPCEnv(gym.Env):
                 #print("Trying to schedule {} on {}".format(job, proposed_machine))
                 best_machine_index, best_machine = self.scheduler.get_best_bin_first_machine(job)
                 
-                if proposed_machine.can_schedule(job):
-                    self.scheduler.run_job(job, proposed_machine_index)
-                    if proposed_machine_index == best_machine_index:
-                        reward = 2
-                    else:
-                        reward = 1
-                else:
-                    #print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
-                    self.scheduler.job_queue.append(job)
-                    reward = 0
+                #reward = self.integer_reward(proposed_machine, proposed_machine_index, best_machine_index, job)
+                reward = self.ranked_reward(job, proposed_machine_index)
             
             terminated = self.scheduler.tick()
 
@@ -255,7 +247,31 @@ class HPCEnv(gym.Env):
             print(f"Step {step_counter}:")
             print(self.scheduler.summary_statistics())
         return observation, reward, terminated, truncated, info
-        
+
+    def integer_reward(self, proposed_machine, proposed_machine_index, best_machine_index, job):
+        if proposed_machine.can_schedule(job):
+            self.scheduler.run_job(job, proposed_machine_index)
+            if proposed_machine_index == best_machine_index:
+                reward = 2
+            else:
+                reward = 1
+        else:
+            #print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
+            self.scheduler.job_queue.append(job)
+            reward = 0
+        return reward
+
+    def ranked_reward(self, job, proposed_machine_index):
+        rankings = self.scheduler.get_best_bin_first_machine_ranking(job)
+        for rank in rankings:
+            if rank[0] == proposed_machine_index:
+                reward = rank[2]
+                break
+        if reward < 0:
+            #print("proposed machine {} lacks resources required to run {}".format(proposed_machine.node_name, job.job_name))
+            self.scheduler.job_queue.append(job)
+        return reward
+
     def close(self):
         #check if renderer is "human" and destroy window if it is
         pass

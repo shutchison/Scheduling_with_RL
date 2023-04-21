@@ -184,6 +184,53 @@ class Scheduler():
                     
         return (assigned_machine_index, assigned_machine)
 
+    def get_best_bin_first_machine_ranking(self, job):
+        min_fill_margin = 10
+        machine_rankings = []
+        for machine_index, m in enumerate(self.cluster.machines):
+            if (m.avail_mem >= job.req_mem) and (m.avail_cpus >= job.req_cpus) and (m.avail_gpus >= job.req_gpus):
+                #print("checking {}".format(m.node_name))
+                # not all nodes have both GPUs and CPUs, so init each margin to 0
+                mem_margin = 0.0
+                cpu_margin = 0.0
+                gpu_margin = 0.0
+
+                # count how many attributes the node has to normalize the final margin
+                n_attributes = 0
+
+                if m.total_mem > 0:
+                    mem_margin = (m.avail_mem - job.req_mem)/m.total_mem
+                    n_attributes += 1
+
+                if m.total_cpus > 0:
+                    cpu_margin = (m.avail_cpus - job.req_cpus)/m.total_cpus
+                    n_attributes += 1
+
+                if m.total_gpus > 0:
+                    gpu_margin = (m.avail_gpus - job.req_gpus)/m.total_gpus
+                    n_attributes += 1
+
+                if n_attributes == 0:
+                    print("{} has no virtual resources configured (all <= 0).".format(m.node_name))
+                    fill_margin = 10
+                else:
+                    fill_margin = (mem_margin + cpu_margin + gpu_margin)/n_attributes
+                
+                machine_rankings.append( [machine_index, fill_margin, 0] )
+            else:
+                machine_rankings.append( [machine_index, -1, -1] )
+
+        machine_rankings = sorted(machine_rankings, key=lambda x: x[1])
+        reward = len(self.cluster.machines)
+        for m in machine_rankings:
+            if m[2] == 0:
+                m[2] = reward
+            else:
+                break
+            reward = reward - 1
+
+        return machine_rankings
+
     def get_first_available_machine(self, job):
         assigned_machine = None
         assigned_machine_index = None

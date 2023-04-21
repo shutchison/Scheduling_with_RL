@@ -29,7 +29,7 @@ observation = env.scheduler._get_obs()
 # ===========================================
 #               Init RL model
 # ===========================================
-model_file = r"C:\Projects\Scheduling_with_RL_models\actor.pt"
+model_file = r"C:\Projects\Scheduling_with_RL_models\actor_5k.pt"
 
 agent = torch.load(model_file, map_location=torch.device("cpu"))
 
@@ -48,10 +48,10 @@ decision_name = ""
 DECISION_MODE = PPO
 
 for i in range(10000):
-    print("Step #{}".format(i))
-    print("observation is: ")
-    pprint(observation)
-    print("="*60)
+    #print("Step #{}".format(i))
+    #print("observation is: ")
+    #pprint(observation)
+    #print("="*60)
 
     if DECISION_MODE == RANDOM:
         node_to_sched = random.randint(0,7)
@@ -73,12 +73,18 @@ for i in range(10000):
         print("Unknown decision mode")
         break
     
+    rankings = env.scheduler.get_best_bin_first_machine_ranking(dummy_job)
+
+    print(f"Future jobs: {len(env.scheduler.future_jobs.queue)}")
+    print(f"Queued jobs: {len(env.scheduler.job_queue)}")
+    #print(dummy_job)
+    #print(env.scheduler.cluster.machines[node_to_sched])
     print(f"{decision_name} decision is: {node_to_sched}")
     
     observation, reward, terminated, truncated, info = env.step(node_to_sched)
 
     # Toggle visualization by commenting this out
-    env.render()
+    #env.render()
    
     dummy_job = Job("job",
                     observation[0]*1000000,
