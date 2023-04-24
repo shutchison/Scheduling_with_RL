@@ -1,0 +1,14 @@
+Machines File: more_machines.csv,,,
+Jobs File: 5000_jobs.csv,,,
+,,,
+Trial,Decision_Method,AQT_sec,Simulation_Time_sec
+1,Best Bin First,14629.42729,329.86
+2,Best Bin First,14629.42729,250.85
+3,Best Bin First,14629.42729,260.92
+4,Best Bin First,14629.42729,355.87
+5,Best Bin First,14629.42729,279.04
+1,Oracle,8316.489098,252.69
+2,Oracle,8316.489098,185.03
+3,Oracle,8316.489098,286.59
+4,Oracle,8316.489098,228.28
+5,Oracle,8316.489098,203.13
