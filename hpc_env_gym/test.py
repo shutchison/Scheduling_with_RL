@@ -30,11 +30,12 @@ observation = env.scheduler._get_obs()
 # ===========================================
 #               Init RL model
 # ===========================================
-model_file = r"C:\Projects\Scheduling_with_RL_models\actor_5k.pt"
+agent_file = "actor_3M.pt"
+model_file = r"C:\Projects\Scheduling_with_RL_models" + "\\" + agent_file
 
 agent = torch.load(model_file, map_location=torch.device("cpu"))
 
-
+num_agent_corrections = 0
 # ===========================================
 #         Init decision model options
 # ===========================================
@@ -48,22 +49,30 @@ decision_name = ""
 
 DECISION_MODE = PPO
 
-decision_list = [PPO]
+decision_list = [ORACLE, BBF, PPO]
 
 num_trials = 5
 
+print("Machines File: {}".format(env.scheduler.machines_file))
+print("Jobs File: {}".format(env.scheduler.jobs_file))
+print("Running {} trials for {} decision methods...".format(num_trials, len(decision_list)))
 with open("trial_results.csv", "w") as csvfile:
 
     csvfile.write("Machines File: {}\n".format(env.scheduler.machines_file))
-    csvfile.write("Jobs File: {}\n\n".format(env.scheduler.jobs_file))
-    csvfile.write("Trial,Decision_Method,AQT_sec,Simulation_Time_sec\n")
+    csvfile.write("Jobs File: {}\n".format(env.scheduler.jobs_file))
+    if PPO in decision_list:
+        csvfile.write("Agent file: {}\n\n".format(agent_file))
+        csvfile.write("Trial,Decision_Method,AQT_sec,Simulation_Time_sec,Num_agent_corrections\n")
+    else:
+        csvfile.write("\n")
+        csvfile.write("Trial,Decision_Method,AQT_sec,Simulation_Time_sec\n")
 
     for n in range(num_trials):
         for decision in decision_list:
             DECISION_MODE = decision
             start_time=time.time()
 
-            for i in range(10000):
+            for i in range(100000):
                 #print("Step #{}".format(i))
                 #print("observation is: ")
                 #pprint(observation)
@@ -83,7 +92,21 @@ with open("trial_results.csv", "w") as csvfile:
                     node_to_sched, node = env.scheduler.get_first_available_machine(dummy_job)
                     decision_name = "Shortest Job Next"
                 elif DECISION_MODE == PPO:
-                    node_to_sched = agent(torch.tensor(observation)).argmax().item()
+                    node_probabilities = agent(torch.tensor(observation)).tolist()
+                    ranked_nodes = []
+                    i=0
+                    for node in node_probabilities:
+                        ranked_nodes.append( (i,node) )
+                        i=i+1
+                    ranked_nodes.sort(reverse=True,key=lambda x: x[1])
+                    #node_to_sched = ranked_nodes[0][0]
+                    for node in ranked_nodes:
+                        if env.scheduler.cluster.machines[node[0]].can_schedule(dummy_job):
+                            node_to_sched = node[0]
+                            break
+                        else:
+                            num_agent_corrections = num_agent_corrections+1
+
                     decision_name = "PPO Agent"
                 else:
                     print("Unknown decision mode")
@@ -91,11 +114,11 @@ with open("trial_results.csv", "w") as csvfile:
                 
                 #rankings = env.scheduler.get_best_bin_first_machine_ranking(dummy_job)
 
-                print(f"Future jobs: {len(env.scheduler.future_jobs.queue)}")
-                print(f"Queued jobs: {len(env.scheduler.job_queue)}")
+                #print(f"Future jobs: {len(env.scheduler.future_jobs.queue)}")
+                #print(f"Queued jobs: {len(env.scheduler.job_queue)}")
                 #print(dummy_job)
                 #print(env.scheduler.cluster.machines[node_to_sched])
-                print(f"{decision_name} decision is: {node_to_sched}")
+                #print(f"{decision_name} decision is: {node_to_sched}")
                 
                 observation, reward, terminated, truncated, info = env.step(node_to_sched)
 
@@ -119,16 +142,20 @@ with open("trial_results.csv", "w") as csvfile:
 
             duration=round(time.time()-start_time,2)
 
-            print("Machines File: {}".format(env.scheduler.machines_file))
-            print("Jobs File: {}".format(env.scheduler.jobs_file))
-            print("Decision method: {}".format(decision_name))
+            #print("Decision method: {}".format(decision_name))
+            print("Trial {} for {} complete".format(n, decision_name))
             print("Average Queue Time: {} hours".format(round(average_queue_time/3600,2)))
             print("Simulation took {} seconds".format(duration))
+            print("Num Agent corrections: {}".format(num_agent_corrections))
 
-            csvfile.write(str(n+1) + "," + decision_name + "," + str(average_queue_time) + "," + str(duration) + "\n")
+            if PPO in decision_list:
+                csvfile.write(str(n+1) + "," + decision_name + "," + str(average_queue_time) + "," + str(duration) + "," + str(num_agent_corrections) +"\n")
+            else:
+                csvfile.write(str(n+1) + "," + decision_name + "," + str(average_queue_time) + "," + str(duration) + "\n")
             env.scheduler.reset(env.scheduler.machines_file, env.scheduler.jobs_file)
             observation = env.scheduler._get_obs()
             env.scheduler.use_oracle = False
+            num_agent_corrections = 0
             dummy_job = Job("job",
                 env.scheduler.job_queue[0].req_mem,
                 env.scheduler.job_queue[0].req_cpus,
