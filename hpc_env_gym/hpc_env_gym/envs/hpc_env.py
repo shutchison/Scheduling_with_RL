@@ -21,7 +21,7 @@ step_counter = 0
 steps_between_prints = 10000
 # Unsure how to pass these in, so hard coding for the moment
 machines_csv_name = "more_machines.csv"
-jobs_csv_name = "5000_jobs_eval.csv"
+jobs_csv_name = "5000_jobs.csv"
 
 # extending the OpenAI Gym environment
 # https://www.gymlibrary.dev/api/core/

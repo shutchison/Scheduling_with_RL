@@ -53,7 +53,7 @@ DECISION_MODE = PPO
 
 decision_list = [ORACLE, BBF, PPO, PPO2]
 
-num_trials = 20
+num_trials = 1
 
 print("Machines File: {}".format(env.scheduler.machines_file))
 print("Jobs File: {}".format(env.scheduler.jobs_file))
@@ -72,23 +72,27 @@ with open("trial_results.csv", "w") as csvfile:
         csvfile.write("Agent file: {}\n".format(agent_file_5k))
     
     if PPO in decision_list or PPO2 in decision_list:
-        csvfile.write("\nTrial,Decision_Method,AQT_sec,Simulation_Time_sec,Num_agent_corrections\n")
+        csvfile.write("\nTrial,Decision_Method,AQT_sec,Avg_Decision_time_sec,Num_agent_corrections\n")
     else:
-        csvfile.write("\nTrial,Decision_Method,AQT_sec,Simulation_Time_sec\n")
+        csvfile.write("\nTrial,Decision_Method,AQT_sec,Avg_Decision_time_sec\n")
 
     for n in range(num_trials):
         for decision in decision_list:
             DECISION_MODE = decision
-            start_time=time.time()
-
+            
+            decision_times = []
             for i in range(100000):
                 #print("Step #{}".format(i))
                 #print("observation is: ")
                 #pprint(observation)
                 #print("="*60)
-
+                start_time=time.time()
                 if DECISION_MODE == RANDOM:
-                    node_to_sched = random.randint(0,7)
+                    valid_node = False
+                    while not valid_node:
+                        node_to_sched = random.randint(0,11)
+                        if env.scheduler.cluster.machines[node_to_sched].can_schedule(dummy_job):
+                            valid_node = True
                     decision_name = "Random"
                 elif DECISION_MODE == BBF:
                     node_to_sched, node = env.scheduler.get_best_bin_first_machine(dummy_job)
@@ -125,6 +129,8 @@ with open("trial_results.csv", "w") as csvfile:
                     print("Unknown decision mode")
                     break
                 
+                decision_times.append(round(time.time()-start_time,3))
+
                 #rankings = env.scheduler.get_best_bin_first_machine_ranking(dummy_job)
 
                 #print(f"Future jobs: {len(env.scheduler.future_jobs.queue)}")
@@ -153,18 +159,18 @@ with open("trial_results.csv", "w") as csvfile:
 
             average_queue_time = env.scheduler.get_avg_job_queue_time()
 
-            duration=round(time.time()-start_time,3)
+            avg_decision_time = sum(decision_times) / len(decision_times)
 
             #print("Decision method: {}".format(decision_name))
             print("Trial {} for {} complete".format(n+1, decision_name))
             print("Average Queue Time: {} hours".format(round(average_queue_time/3600,2)))
-            print("Simulation took {} seconds".format(duration))
+            print("Average Decision Time: {} seconds".format(avg_decision_time))
             print("Num Agent corrections: {}".format(num_agent_corrections))
 
-            if PPO in decision_list:
-                csvfile.write(str(n+1) + "," + decision_name + "," + str(average_queue_time) + "," + str(duration) + "," + str(num_agent_corrections) +"\n")
+            if PPO in decision_list or PPO2 in decision_list:
+                csvfile.write(str(n+1) + "," + decision_name + "," + str(average_queue_time) + "," + str(avg_decision_time) + "," + str(num_agent_corrections) +"\n")
             else:
-                csvfile.write(str(n+1) + "," + decision_name + "," + str(average_queue_time) + "," + str(duration) + "\n")
+                csvfile.write(str(n+1) + "," + decision_name + "," + str(average_queue_time) + "," + str(avg_decision_time) + "\n")
             env.scheduler.reset(env.scheduler.machines_file, env.scheduler.jobs_file)
             observation = env.scheduler._get_obs()
             env.scheduler.use_oracle = False
