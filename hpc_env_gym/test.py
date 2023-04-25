@@ -30,11 +30,12 @@ observation = env.scheduler._get_obs()
 # ===========================================
 #               Init RL model
 # ===========================================
-agent_file = "actor_3M.pt"
-model_file = r"C:\Projects\Scheduling_with_RL_models" + "\\" + agent_file
+agent_file_5k = "actor_5k.pt"
+agent_file_3M = "actor_3M.pt"
+model_file = r"C:\Projects\Scheduling_with_RL_models" + "\\"
 
-agent = torch.load(model_file, map_location=torch.device("cpu"))
-
+agent_5k = torch.load(model_file + agent_file_5k, map_location=torch.device("cpu"))
+agent_3M = torch.load(model_file + agent_file_3M, map_location=torch.device("cpu"))
 num_agent_corrections = 0
 # ===========================================
 #         Init decision model options
@@ -45,27 +46,35 @@ BBF = 2
 ORACLE = 3 # Shortest Job Next based on actual duration
 SJN = 4 # Shortest Job Next based on requested duration
 PPO = 5
+PPO2 = 6
 decision_name = ""
 
 DECISION_MODE = PPO
 
-decision_list = [ORACLE, BBF, PPO]
+decision_list = [ORACLE, BBF, PPO, PPO2]
 
 num_trials = 5
 
 print("Machines File: {}".format(env.scheduler.machines_file))
 print("Jobs File: {}".format(env.scheduler.jobs_file))
-print("Running {} trials for {} decision methods...".format(num_trials, len(decision_list)))
+if PPO in decision_list:
+    print("Agent file: {}".format(agent_file_5k))
+if PPO2 in decision_list:
+    print("Agent file: {}".format(agent_file_3M))
+print("\nRunning {} trials for {} decision methods...".format(num_trials, len(decision_list)))
 with open("trial_results.csv", "w") as csvfile:
 
     csvfile.write("Machines File: {}\n".format(env.scheduler.machines_file))
     csvfile.write("Jobs File: {}\n".format(env.scheduler.jobs_file))
     if PPO in decision_list:
-        csvfile.write("Agent file: {}\n\n".format(agent_file))
-        csvfile.write("Trial,Decision_Method,AQT_sec,Simulation_Time_sec,Num_agent_corrections\n")
+        csvfile.write("Agent file: {}\n".format(agent_file_5k))
+    if PPO2 in decision_list:
+        csvfile.write("Agent file: {}\n".format(agent_file_5k))
+    
+    if PPO in decision_list or PPO2 in decision_list:
+        csvfile.write("\nTrial,Decision_Method,AQT_sec,Simulation_Time_sec,Num_agent_corrections\n")
     else:
-        csvfile.write("\n")
-        csvfile.write("Trial,Decision_Method,AQT_sec,Simulation_Time_sec\n")
+        csvfile.write("\nTrial,Decision_Method,AQT_sec,Simulation_Time_sec\n")
 
     for n in range(num_trials):
         for decision in decision_list:
@@ -91,7 +100,13 @@ with open("trial_results.csv", "w") as csvfile:
                 elif DECISION_MODE == SJN:
                     node_to_sched, node = env.scheduler.get_first_available_machine(dummy_job)
                     decision_name = "Shortest Job Next"
-                elif DECISION_MODE == PPO:
+                elif DECISION_MODE == PPO or DECISION_MODE == PPO2:
+                    if DECISION_MODE == PPO:
+                        agent = agent_5k
+                        decision_name = "PPO Agent 5k"
+                    elif DECISION_MODE == PPO2:
+                        agent = agent_3M
+                        decision_name = "PPO Agent 3M"
                     node_probabilities = agent(torch.tensor(observation)).tolist()
                     ranked_nodes = []
                     i=0
@@ -106,8 +121,6 @@ with open("trial_results.csv", "w") as csvfile:
                             break
                         else:
                             num_agent_corrections = num_agent_corrections+1
-
-                    decision_name = "PPO Agent"
                 else:
                     print("Unknown decision mode")
                     break
@@ -140,10 +153,10 @@ with open("trial_results.csv", "w") as csvfile:
 
             average_queue_time = env.scheduler.get_avg_job_queue_time()
 
-            duration=round(time.time()-start_time,2)
+            duration=round(time.time()-start_time,3)
 
             #print("Decision method: {}".format(decision_name))
-            print("Trial {} for {} complete".format(n, decision_name))
+            print("Trial {} for {} complete".format(n+1, decision_name))
             print("Average Queue Time: {} hours".format(round(average_queue_time/3600,2)))
             print("Simulation took {} seconds".format(duration))
             print("Num Agent corrections: {}".format(num_agent_corrections))

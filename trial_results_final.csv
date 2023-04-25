@@ -1,0 +1,26 @@
+Machines File: more_machines.csv
+Jobs File: 5000_jobs_eval.csv
+Agent file: actor_5k.pt
+Agent file: actor_5k.pt
+
+Trial,Decision_Method,AQT_sec,Simulation_Time_sec,Num_agent_corrections
+1,Oracle,26007.4168,418.872,0
+1,Best Bin First,29708.7146,403.743,0
+1,PPO Agent 5k,31518.7466,418.371,34268
+1,PPO Agent 3M,33184.9352,406.631,24128
+2,Oracle,26007.4168,403.42,0
+2,Best Bin First,29708.7146,408.382,0
+2,PPO Agent 5k,31518.7466,435.939,34268
+2,PPO Agent 3M,33184.9352,429.347,24128
+3,Oracle,26007.4168,416.191,0
+3,Best Bin First,29708.7146,397.755,0
+3,PPO Agent 5k,31518.7466,429.034,34268
+3,PPO Agent 3M,33184.9352,423.183,24128
+4,Oracle,26007.4168,443.954,0
+4,Best Bin First,29708.7146,384.956,0
+4,PPO Agent 5k,31518.7466,414.024,34268
+4,PPO Agent 3M,33184.9352,427.827,24128
+5,Oracle,26007.4168,425.307,0
+5,Best Bin First,29708.7146,404.83,0
+5,PPO Agent 5k,31518.7466,404.596,34268
+5,PPO Agent 3M,33184.9352,392.064,24128
