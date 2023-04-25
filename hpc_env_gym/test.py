@@ -53,7 +53,7 @@ DECISION_MODE = PPO
 
 decision_list = [ORACLE, BBF, PPO, PPO2]
 
-num_trials = 5
+num_trials = 20
 
 print("Machines File: {}".format(env.scheduler.machines_file))
 print("Jobs File: {}".format(env.scheduler.jobs_file))
